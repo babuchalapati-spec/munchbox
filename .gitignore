@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+*/node_modules/
+*/*/node_modules/
+
+# Environment / secrets — never commit real credentials
+.env
+*/.env
+**/.env.local
+
+# Backend uploads (user-generated content, not source)
+backend/uploads/
+
+# Downloadable APKs served by the backend (rebuilt/republished, not source)
+backend/downloads/*.apk
+
+# Android build outputs
+mobile/android/app/build/
+mobile/android/build/
+mobile/android/.gradle/
+mobile/android/local.properties
+*.keystore
+!mobile/android/app/debug.keystore
+
+# Vite/React build output
+admin/dist/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Logs
+npm-debug.log*
+yarn-error.log*
+*.log
