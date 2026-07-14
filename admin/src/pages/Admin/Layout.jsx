@@ -36,10 +36,14 @@ export default function Layout() {
   return (
     <div className="admin-shell">
       <aside className="sidebar">
-        <h2>Munchbox {isAdmin ? 'Admin' : 'Shop'}</h2>
+        <div className="sidebar-brand">
+          <div className="sidebar-brand-mark">🍰</div>
+          <h2>Munchbox {isAdmin ? 'Admin' : 'Shop'}</h2>
+        </div>
         <nav>
           <NavLink to="/admin" end>Dashboard</NavLink>
           <NavLink to="/admin/orders">Orders</NavLink>
+          <NavLink to="/admin/live-map">Live map</NavLink>
           <NavLink to="/admin/catering">Catering</NavLink>
           <NavLink to="/admin/products">Products</NavLink>
           <NavLink to="/admin/ledger">Ledger</NavLink>
@@ -50,6 +54,11 @@ export default function Layout() {
           {isAdmin && <NavLink to="/admin/payments">Payments</NavLink>}
           {isAdmin && <NavLink to="/admin/delivery-accounts">Delivery partners</NavLink>}
           {isAdmin && <NavLink to="/admin/settings">Settings</NavLink>}
+          {isAdmin && (
+            <a href="/test-center" target="_blank" rel="noopener noreferrer">
+              🧪 Test Center
+            </a>
+          )}
         </nav>
         <div className="sidebar-footer">
           <p>{user?.name}</p>

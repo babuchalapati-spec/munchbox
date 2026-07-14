@@ -28,7 +28,6 @@ export default function CustomerLoginTest() {
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [step, setStep] = useState('phone'); // 'phone' | 'code' | 'done'
-  const [devHint, setDevHint] = useState('');
   const [session, setSession] = useState(null); // { user, token }
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -60,7 +59,9 @@ export default function CustomerLoginTest() {
     setSubmitting(true);
     try {
       const { data } = await testClient.post('/auth/request-otp', { phone });
-      setDevHint(data.devMode && data.devCode ? `Dev code: ${data.devCode}` : '');
+      // Dev-mode OTP (only present when real SMS isn't configured yet) goes to the
+      // browser console only — never shown on the page itself.
+      if (data.devMode && data.devCode) console.log(`[dev OTP] ${phone}: ${data.devCode}`);
       setStep('code');
     } catch (err) {
       setError(err.response?.data?.message || 'Could not send OTP');
@@ -87,7 +88,6 @@ export default function CustomerLoginTest() {
   function reset() {
     setPhone('');
     setCode('');
-    setDevHint('');
     setSession(null);
     setError('');
     setStep('phone');
@@ -206,7 +206,6 @@ export default function CustomerLoginTest() {
           {step === 'code' && (
             <form onSubmit={verifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <p className="login-sub">OTP sent to {phone}</p>
-              {devHint && <p style={{ color: '#a86b00', fontSize: '0.8rem' }}>{devHint}</p>}
               <label>
                 Enter OTP
                 <input value={code} onChange={(e) => setCode(e.target.value)} required autoFocus />

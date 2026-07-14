@@ -9,9 +9,10 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { useAuth } from '../context/AuthContext';
 import { shopRegister, requestOtp } from '../api/auth';
-import { colors } from '../theme';
+import { colors, brandGradient } from '../theme';
 
 const CATEGORIES = [
   { key: 'cake', label: '🎂 Cakes' },
@@ -37,7 +38,6 @@ export default function ShopLoginScreen({ navigation }) {
   const [phone, setPhone] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [otpStep, setOtpStep] = useState('phone'); // 'phone' | 'code'
-  const [devHint, setDevHint] = useState('');
 
   const upd = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -64,8 +64,7 @@ export default function ShopLoginScreen({ navigation }) {
     setError('');
     setBusy(true);
     try {
-      const res = await requestOtp(phone);
-      setDevHint(res.devMode && res.devCode ? `Dev code: ${res.devCode}` : '');
+      await requestOtp(phone);
       setOtpStep('code');
     } catch (err) {
       setError(err.response?.data?.message || 'Could not send OTP');
@@ -138,7 +137,11 @@ export default function ShopLoginScreen({ navigation }) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>🏪 Shop owner</Text>
+      <LinearGradient colors={brandGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.headerBadge}>
+        <Text style={styles.headerEmoji}>🏪</Text>
+        <Text style={styles.title}>Shop owner</Text>
+        <Text style={styles.headerSub}>Manage your menu, orders & earnings</Text>
+      </LinearGradient>
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       {mode === 'login' && (
@@ -181,7 +184,6 @@ export default function ShopLoginScreen({ navigation }) {
           ) : (
             <>
               <Text style={styles.sub}>OTP sent to {phone}</Text>
-              {devHint ? <Text style={styles.devHint}>{devHint}</Text> : null}
               <TextInput style={[styles.input, styles.code]} placeholder="000000" keyboardType="number-pad" maxLength={6} value={otpCode} onChangeText={setOtpCode} />
               <TouchableOpacity style={styles.button} onPress={verifyShopOtp} disabled={busy}>
                 {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Verify & sign in</Text>}
@@ -250,14 +252,21 @@ export default function ShopLoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   content: { padding: 24, paddingTop: 40 },
-  title: { fontSize: 26, fontWeight: '800', color: colors.text, marginBottom: 8 },
+  headerBadge: {
+    borderRadius: 20,
+    padding: 20,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  headerEmoji: { fontSize: 30, marginBottom: 6 },
+  headerSub: { color: 'rgba(255,255,255,0.92)', fontSize: 12, marginTop: 4, fontWeight: '500' },
+  title: { fontSize: 24, fontWeight: '800', color: '#fff' },
   sub: { color: colors.muted, marginBottom: 16, lineHeight: 19 },
   tabRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
   tab: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingVertical: 10, alignItems: 'center', backgroundColor: colors.card },
   tabActive: { borderColor: colors.primary, backgroundColor: colors.primary },
   tabText: { fontSize: 13, color: colors.text, fontWeight: '600' },
   tabTextActive: { color: '#fff' },
-  devHint: { color: '#a86b00', fontSize: 12, marginBottom: 10 },
   input: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, marginBottom: 10 },
   code: { fontSize: 22, letterSpacing: 6, textAlign: 'center' },
   button: { backgroundColor: colors.primary, borderRadius: 8, padding: 14, alignItems: 'center', marginTop: 6 },

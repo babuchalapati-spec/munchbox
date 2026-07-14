@@ -4,6 +4,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import CustomerLoginTest from './pages/CustomerLoginTest';
 import DeliveryTest from './pages/DeliveryTest';
+import ShopTest from './pages/ShopTest';
+import TestCenter from './pages/TestCenter';
 import Layout from './pages/Admin/Layout';
 import Dashboard from './pages/Admin/Dashboard';
 import Products from './pages/Admin/Products';
@@ -17,6 +19,7 @@ import Ledger from './pages/Admin/Ledger';
 import Finance from './pages/Admin/Finance';
 import ItemApprovals from './pages/Admin/ItemApprovals';
 import Settings from './pages/Admin/Settings';
+import LiveMap from './pages/Admin/LiveMap';
 
 export default function App() {
   return (
@@ -26,6 +29,8 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/customer-test" element={<CustomerLoginTest />} />
           <Route path="/delivery-test" element={<DeliveryTest />} />
+          <Route path="/shop-test" element={<ShopTest />} />
+          <Route path="/test-center" element={<TestCenter />} />
           <Route
             path="/admin"
             element={
@@ -36,6 +41,7 @@ export default function App() {
           >
             <Route index element={<Dashboard />} />
             <Route path="orders" element={<Orders />} />
+            <Route path="live-map" element={<LiveMap />} />
             <Route path="shops" element={<Shops />} />
             <Route path="catering" element={<Catering />} />
             <Route path="products" element={<Products />} />

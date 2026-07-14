@@ -5,6 +5,20 @@ export async function placeOrder(payload) {
   return data.order;
 }
 
+// Creates a Razorpay order for the same checkout details/amount the customer is about
+// to place — priced server-side so the amount can't be tampered with from the app.
+export async function createRazorpayOrder(payload) {
+  const {data} = await client.post('/payments/razorpay/order', payload);
+  return data; // { razorpayOrderId, amount, currency, keyId, totalAmount }
+}
+
+// Tells the backend a Razorpay checkout attempt failed/was cancelled, so the admin
+// can see it under Payments instead of it disappearing silently.
+export async function reportPaymentFailure(payload) {
+  const {data} = await client.post('/payments/razorpay/failed', payload);
+  return data.failure;
+}
+
 export async function listMyCoupons() {
   const {data} = await client.get('/orders/coupons');
   return data.coupons;

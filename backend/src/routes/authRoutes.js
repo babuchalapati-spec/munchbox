@@ -20,6 +20,8 @@ const {
   setShopTwoFactorPermission,
   reviewShopAccount,
   verifyTwoFactorLogin,
+  resetPasswordWithOtp,
+  setPassword,
 } = require('../controllers/authController');
 const {
   getLedger,
@@ -42,8 +44,10 @@ router.post('/shop-2fa/setup', protect, asyncHandler(setupTwoFactor));
 router.post('/shop-2fa/confirm', protect, asyncHandler(confirmTwoFactor));
 router.post('/request-otp', asyncHandler(requestOtp));
 router.post('/verify-otp', asyncHandler(verifyOtp));
+router.post('/reset-password', asyncHandler(resetPasswordWithOtp));
 router.get('/me', protect, asyncHandler(getMe));
 router.put('/me', protect, asyncHandler(updateMe));
+router.put('/me/password', protect, asyncHandler(setPassword));
 router.post('/delivery-register', asyncHandler(deliveryRegister));
 router.put('/kyc', protect, asyncHandler(submitKyc));
 router.get('/ledger', protect, asyncHandler(getLedger));

@@ -19,7 +19,6 @@ export default function DeliveryRegisterScreen({ navigation }) {
   const [step, setStep] = useState('phone'); // 'phone' | 'otp' | 'details'
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
-  const [devHint, setDevHint] = useState('');
   const [form, setForm] = useState({ name: '', vehicleNumber: '' });
   const [docs, setDocs] = useState({});
   const [error, setError] = useState('');
@@ -34,9 +33,8 @@ export default function DeliveryRegisterScreen({ navigation }) {
     setError('');
     setBusy(true);
     try {
-      const res = await requestOtp(phone);
+      await requestOtp(phone);
       setStep('otp');
-      setDevHint(res.devMode && res.devCode ? `Dev code: ${res.devCode}` : '');
     } catch (err) {
       setError(err.response?.data?.message || 'Could not send OTP');
     } finally {
@@ -133,7 +131,6 @@ export default function DeliveryRegisterScreen({ navigation }) {
       {step === 'otp' && (
         <>
           <Text style={styles.sub}>Enter the OTP sent to {phone}</Text>
-          {devHint ? <Text style={styles.dev}>{devHint}</Text> : null}
           <TextInput style={[styles.input, styles.code]} placeholder="OTP" keyboardType="number-pad" maxLength={6} value={code} onChangeText={setCode} />
           <TouchableOpacity style={styles.button} onPress={verify} disabled={busy}>
             {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Verify</Text>}
@@ -186,7 +183,6 @@ const styles = StyleSheet.create({
   content: { padding: 20, paddingTop: 40 },
   title: { fontSize: 24, fontWeight: '700', color: colors.text, marginBottom: 6 },
   sub: { color: colors.muted, marginBottom: 16, lineHeight: 19 },
-  dev: { color: colors.warning, fontSize: 12, marginBottom: 8 },
   input: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, marginBottom: 10 },
   code: { fontSize: 20, letterSpacing: 6, textAlign: 'center' },
   section: { fontSize: 14, fontWeight: '700', color: colors.text, marginTop: 10, marginBottom: 8 },

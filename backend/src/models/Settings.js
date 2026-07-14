@@ -37,6 +37,11 @@ const settingsSchema = new mongoose.Schema(
     finance: {
       taxPercent: { type: Number, default: 0 },
     },
+    // Used only by the admin web dashboard's live map (shops, delivery partners,
+    // customers) — the mobile apps use OpenStreetMap and need no key.
+    maps: {
+      googleMapsApiKey: { type: String, default: '' },
+    },
   },
   { timestamps: true }
 );

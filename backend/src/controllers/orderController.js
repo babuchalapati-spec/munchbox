@@ -5,7 +5,9 @@ const Shop = require('../models/Shop');
 const Coupon = require('../models/Coupon');
 const ReferralTicket = require('../models/ReferralTicket');
 const LedgerEntry = require('../models/LedgerEntry');
+const PaymentFailure = require('../models/PaymentFailure');
 const { computeDeliveryFee, haversineKm, getEta } = require('../utils/distance');
+const { createRazorpayOrder, fetchRazorpayOrder, verifyRazorpaySignature } = require('../utils/razorpay');
 const { ORDER_STATUSES } = Order;
 
 const MIN_WALLET_BALANCE = 500;
@@ -161,7 +163,7 @@ async function listMyCoupons(req, res) {
   res.json({ coupons });
 }
 
-async function resolveCoupon(userId, couponCode, orderAmount) {
+async function resolveCoupon(userId, couponCode, orderAmount, deliveryFee) {
   const code = String(couponCode || '').trim().toUpperCase();
   if (!code) return { coupon: null, discount: 0 };
 
@@ -187,6 +189,9 @@ async function resolveCoupon(userId, couponCode, orderAmount) {
     const err = new Error(`Coupon requires an order of at least ₹${coupon.minOrderAmount}`);
     err.statusCode = 400;
     throw err;
+  }
+  if (coupon.type === 'free_delivery') {
+    return { coupon, discount: Math.min(deliveryFee, orderAmount) };
   }
   return { coupon, discount: Math.min(coupon.amount, orderAmount) };
 }
@@ -221,6 +226,32 @@ async function rewardReferralIfFirstOrder(userId, orderId) {
   await ticket.save();
 }
 
+// Every LOYALTY_MILESTONE-th completed shop order, the customer gets a free-delivery
+// coupon as a small thank-you for being a regular — automatic, no admin action needed.
+const LOYALTY_MILESTONE = 5;
+
+async function rewardLoyaltyMilestone(userId, orderId) {
+  const completedOrders = await Order.countDocuments({ user: userId, type: 'shop', status: { $ne: 'cancelled' } });
+  if (completedOrders === 0 || completedOrders % LOYALTY_MILESTONE !== 0) return;
+
+  for (let i = 0; i < 5; i += 1) {
+    try {
+      await Coupon.create({
+        user: userId,
+        code: `LOYAL${Math.floor(100000 + Math.random() * 900000)}`,
+        type: 'free_delivery',
+        amount: 0,
+        minOrderAmount: 0,
+        reason: 'loyalty_free_delivery',
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      });
+      return;
+    } catch (err) {
+      if (err.code !== 11000) throw err;
+    }
+  }
+}
+
 function isCustomizedItem(item) {
   return Boolean(item.isCustom || item.flavor || item.messageOnCake || item.referencePhotoUrl);
 }
@@ -232,85 +263,58 @@ function calendarDaysFromToday(date) {
   return Math.round((startOfDay(date) - startOfDay(new Date())) / (24 * 60 * 60 * 1000));
 }
 
-async function getLedgerBalance(ownerId) {
-  const entries = await LedgerEntry.find({ owner: ownerId }).sort({ createdAt: -1 }).lean();
-  return entries.reduce((total, entry) => {
-    if (entry.direction === 'credit') return total + Number(entry.amount || 0);
-    return total - Number(entry.amount || 0);
-  }, 0);
-}
-
-// The running-balance snapshot to store on a new ledger entry, computed from that
-// owner's last posted entry — keeps the ledger's balanceAfter column trustworthy
-// per owner instead of a placeholder.
-async function nextBalanceAfter(ownerId, amount, direction) {
-  const last = await LedgerEntry.findOne({ owner: ownerId, status: 'posted' }).sort({ createdAt: -1 });
-  const delta = direction === 'credit' ? amount : -amount;
-  return Number(((last?.balanceAfter || 0) + delta).toFixed(2));
-}
-
-async function placeOrder(req, res) {
-  const { shop: shopId, items, deliveryAddress, phone, deliveryLocation, deliveryDate, deliverySlot, paymentMethod, couponCode, tip } =
-    req.body;
+// Shared pricing/validation for a shop order — used by both placeOrder (COD) and
+// createPaymentOrder (Razorpay), so the amount a customer pays online is computed by
+// the exact same logic as a COD order, never duplicated and never trusted from the client.
+async function computeOrderQuote(user, body) {
+  const { shop: shopId, items, deliveryAddress, phone, deliveryLocation, deliveryDate, deliverySlot, couponCode, tip } = body;
 
   const tipAmount = tip === undefined ? 0 : Number(tip);
-  if (!TIP_OPTIONS.includes(tipAmount)) {
-    return res.status(400).json({ message: `tip must be one of: ${TIP_OPTIONS.join(', ')}` });
-  }
+  const err = (message, statusCode, extra) => {
+    const e = new Error(message);
+    e.statusCode = statusCode;
+    e.extra = extra;
+    return e;
+  };
 
-  if (!shopId) {
-    return res.status(400).json({ message: 'shop is required' });
+  if (!TIP_OPTIONS.includes(tipAmount)) {
+    throw err(`tip must be one of: ${TIP_OPTIONS.join(', ')}`, 400);
   }
+  if (!shopId) throw err('shop is required', 400);
   if (!Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ message: 'Order must include at least one item' });
+    throw err('Order must include at least one item', 400);
   }
   if (!deliveryAddress || !phone) {
-    return res.status(400).json({ message: 'deliveryAddress and phone are required' });
+    throw err('deliveryAddress and phone are required', 400);
   }
-  if (
-    !deliveryLocation ||
-    typeof deliveryLocation.lat !== 'number' ||
-    typeof deliveryLocation.lng !== 'number'
-  ) {
-    return res.status(400).json({ message: 'deliveryLocation {lat, lng} is required for delivery pricing' });
+  if (!deliveryLocation || typeof deliveryLocation.lat !== 'number' || typeof deliveryLocation.lng !== 'number') {
+    throw err('deliveryLocation {lat, lng} is required for delivery pricing', 400);
   }
-  if (!deliveryDate) {
-    return res.status(400).json({ message: 'deliveryDate is required' });
-  }
+  if (!deliveryDate) throw err('deliveryDate is required', 400);
   const parsedDeliveryDate = new Date(deliveryDate);
-  if (Number.isNaN(parsedDeliveryDate.getTime())) {
-    return res.status(400).json({ message: 'deliveryDate is invalid' });
-  }
+  if (Number.isNaN(parsedDeliveryDate.getTime())) throw err('deliveryDate is invalid', 400);
 
   const shop = await Shop.findById(shopId);
-  if (!shop) {
-    return res.status(400).json({ message: 'Shop not found' });
-  }
-  if (!shop.isSubscriptionActive()) {
-    return res.status(400).json({ message: 'This shop is not currently accepting orders.' });
-  }
+  if (!shop) throw err('Shop not found', 400);
+  if (!shop.isSubscriptionActive()) throw err('This shop is not currently accepting orders.', 400);
 
   const shopOwner = await User.findOne({ role: 'shop', shop: shop._id });
   if (shopOwner) {
     const balance = await getLedgerBalance(shopOwner._id);
     if (balance < MIN_WALLET_BALANCE) {
-      // The shop's wallet is an internal matter — never expose it to the customer.
-      // They just see that the shop isn't taking orders right now.
-      return res.status(409).json({
-        message: 'This shop is not accepting orders right now. Please try another shop.',
-        shopUnavailable: true,
-      });
+      throw err('This shop is not accepting orders right now. Please try another shop.', 409, { shopUnavailable: true });
     }
   }
 
   const needsLeadTime = items.some(isCustomizedItem);
   const minLeadDays = needsLeadTime ? CUSTOMIZATION_LEAD_DAYS : 0;
   if (calendarDaysFromToday(parsedDeliveryDate) < minLeadDays) {
-    return res.status(400).json({
-      message: needsLeadTime
+    throw err(
+      needsLeadTime
         ? `Customized cakes need at least ${CUSTOMIZATION_LEAD_DAYS} day(s) advance notice. Please choose a later delivery date.`
         : 'deliveryDate cannot be in the past',
-    });
+      400
+    );
   }
 
   const resolvedItems = [];
@@ -336,11 +340,16 @@ async function placeOrder(req, res) {
     }
 
     const product = await Product.findById(item.product);
-    if (!product) {
-      return res.status(400).json({ message: `Product not found: ${item.product}` });
-    }
+    if (!product) throw err(`Product not found: ${item.product}`, 400);
     if (product.shop.toString() !== shopId.toString()) {
-      return res.status(400).json({ message: 'All items in an order must be from the same shop' });
+      throw err('All items in an order must be from the same shop', 400);
+    }
+    // The item may have gone out of stock after the customer added it to their cart —
+    // re-check here, not just in the app UI, so a stale cart can't be checked out.
+    if (!product.available) {
+      throw err(`${product.name} is currently out of stock. Please remove it from your cart.`, 409, {
+        outOfStockItem: product.name,
+      });
     }
 
     const weightDelta = item.weight
@@ -367,35 +376,190 @@ async function placeOrder(req, res) {
   // distance and a runaway delivery fee — that once charged ₹109,313 for a biryani.
   const { isValidLatLng } = require('../utils/geo');
   if (!isValidLatLng(shop.location?.lat, shop.location?.lng)) {
-    return res.status(409).json({
-      message: 'This shop has not set its location yet, so we cannot calculate delivery. Please try another shop.',
+    throw err('This shop has not set its location yet, so we cannot calculate delivery. Please try another shop.', 409, {
       shopUnavailable: true,
     });
   }
   if (!isValidLatLng(deliveryLocation?.lat, deliveryLocation?.lng)) {
-    return res.status(400).json({ message: 'Please set a valid delivery location on the map.' });
+    throw err('Please set a valid delivery location on the map.', 400);
   }
 
   const { distanceKm, deliveryFee } = await computeDeliveryFee(shop.location, deliveryLocation, shop.perKmRate);
   if (distanceKm > MAX_DELIVERY_KM) {
-    return res.status(409).json({
-      message: `This shop is too far from your address (${Math.round(distanceKm)} km) to deliver.`,
-      tooFar: true,
-    });
+    throw err(`This shop is too far from your address (${Math.round(distanceKm)} km) to deliver.`, 409, { tooFar: true });
   }
 
   const preDiscountTotal = itemsTotal + deliveryFee;
   let coupon = null;
   let couponDiscount = 0;
   try {
-    const resolvedCoupon = await resolveCoupon(req.user._id, couponCode, preDiscountTotal);
+    const resolvedCoupon = await resolveCoupon(user._id, couponCode, preDiscountTotal, deliveryFee);
     coupon = resolvedCoupon.coupon;
     couponDiscount = resolvedCoupon.discount;
-  } catch (err) {
-    return res.status(err.statusCode || 400).json({ message: err.message });
+  } catch (couponErr) {
+    throw err(couponErr.message, couponErr.statusCode || 400);
   }
   const orderValue = preDiscountTotal - couponDiscount;
   const totalAmount = orderValue + tipAmount;
+
+  return {
+    shop,
+    shopOwner,
+    resolvedItems,
+    itemsTotal,
+    distanceKm,
+    deliveryFee,
+    coupon,
+    couponDiscount,
+    orderValue,
+    tipAmount,
+    totalAmount,
+    parsedDeliveryDate,
+  };
+}
+
+async function getLedgerBalance(ownerId) {
+  const entries = await LedgerEntry.find({ owner: ownerId }).sort({ createdAt: -1 }).lean();
+  return entries.reduce((total, entry) => {
+    if (entry.direction === 'credit') return total + Number(entry.amount || 0);
+    return total - Number(entry.amount || 0);
+  }, 0);
+}
+
+// The running-balance snapshot to store on a new ledger entry, computed from that
+// owner's last posted entry — keeps the ledger's balanceAfter column trustworthy
+// per owner instead of a placeholder.
+async function nextBalanceAfter(ownerId, amount, direction) {
+  const last = await LedgerEntry.findOne({ owner: ownerId, status: 'posted' }).sort({ createdAt: -1 });
+  const delta = direction === 'credit' ? amount : -amount;
+  return Number(((last?.balanceAfter || 0) + delta).toFixed(2));
+}
+
+// Creates a Razorpay order for the checkout amount, priced by the exact same logic
+// placeOrder will use — the customer pays this amount before the order is created.
+async function createRazorpayPaymentOrder(req, res) {
+  let quote;
+  try {
+    quote = await computeOrderQuote(req.user, req.body);
+  } catch (err) {
+    return res.status(err.statusCode || 400).json({ message: err.message, ...(err.extra || {}) });
+  }
+  try {
+    const gatewayOrder = await createRazorpayOrder(quote.totalAmount, `mb_${req.user._id}_${Date.now()}`);
+    res.json({
+      razorpayOrderId: gatewayOrder.id,
+      amount: gatewayOrder.amount,
+      currency: gatewayOrder.currency,
+      keyId: process.env.RAZORPAY_KEY_ID || '',
+      totalAmount: quote.totalAmount,
+    });
+  } catch (err) {
+    res.status(err.statusCode || 502).json({ message: err.message || 'Could not start payment. Please try Cash on Delivery.' });
+  }
+}
+
+// The mobile app calls this when Razorpay checkout itself reports a failure/cancel,
+// so a customer whose payment didn't go through isn't just silently lost — the admin
+// sees it under Payments and can follow up.
+async function reportPaymentFailure(req, res) {
+  const { amount, reason, razorpayOrderId, razorpayPaymentId } = req.body;
+  const failure = await PaymentFailure.create({
+    user: req.user._id,
+    amount: Number(amount) || 0,
+    reason: reason || 'Payment failed',
+    gatewayOrderId: razorpayOrderId || '',
+    gatewayPaymentId: razorpayPaymentId || '',
+  });
+  res.status(201).json({ failure });
+}
+
+async function listPaymentFailures(req, res) {
+  const failures = await PaymentFailure.find({ resolved: false })
+    .populate('user', 'name phone email')
+    .sort({ createdAt: -1 });
+  res.json({ failures });
+}
+
+async function resolvePaymentFailure(req, res) {
+  const failure = await PaymentFailure.findById(req.params.id);
+  if (!failure) return res.status(404).json({ message: 'Not found' });
+  failure.resolved = true;
+  await failure.save();
+  res.json({ failure });
+}
+
+async function placeOrder(req, res) {
+  const { deliveryAddress, phone, deliverySlot, paymentMethod, payment } = req.body;
+  const method = paymentMethod === 'online' ? 'online' : 'COD';
+
+  let quote;
+  try {
+    quote = await computeOrderQuote(req.user, req.body);
+  } catch (err) {
+    return res.status(err.statusCode || 400).json({ message: err.message, ...(err.extra || {}) });
+  }
+  const {
+    shop,
+    shopOwner,
+    resolvedItems,
+    itemsTotal,
+    distanceKm,
+    deliveryFee,
+    coupon,
+    couponDiscount,
+    orderValue,
+    tipAmount,
+    totalAmount,
+    parsedDeliveryDate,
+  } = quote;
+
+  let paymentInfo = { method: 'COD', status: 'pending' };
+  if (method === 'online') {
+    const gatewayOrderId = payment?.razorpayOrderId;
+    const gatewayPaymentId = payment?.razorpayPaymentId;
+    const signature = payment?.razorpaySignature;
+    if (!gatewayOrderId || !gatewayPaymentId || !signature) {
+      return res.status(400).json({ message: 'Payment verification details are required for online payment' });
+    }
+    if (!verifyRazorpaySignature(gatewayOrderId, gatewayPaymentId, signature)) {
+      return res.status(400).json({ message: 'Payment verification failed. If money was deducted, it will be refunded automatically.' });
+    }
+    // If the app already used this exact payment to create an order — e.g. the phone's
+    // network timed out after payment succeeded and it retried — return that same order
+    // instead of charging the customer's payment again for a second order.
+    const existingForPayment = await Order.findOne({ 'payment.gatewayPaymentId': gatewayPaymentId });
+    if (existingForPayment) {
+      return res.status(200).json({ order: existingForPayment });
+    }
+    // Trust the amount Razorpay recorded for this order, not anything the client sends.
+    let gatewayOrder;
+    try {
+      gatewayOrder = await fetchRazorpayOrder(gatewayOrderId);
+    } catch (err) {
+      return res.status(502).json({ message: 'Could not confirm payment with the gateway. Please try again.' });
+    }
+    if (!gatewayOrder || Math.round(gatewayOrder.amount / 100) !== Math.round(totalAmount)) {
+      return res.status(400).json({ message: 'Payment amount does not match the order total.' });
+    }
+    paymentInfo = { method: 'online', status: 'paid', gatewayOrderId, gatewayPaymentId, paidAt: new Date() };
+  }
+
+  // Guards against a double-tap or a client retrying a slow request: if this same
+  // customer already placed an identical order (same shop + amount) in the last
+  // 20 seconds, return that one instead of creating — and separately commission-charging
+  // the shop for — a second order.
+  const duplicateWindow = new Date(Date.now() - 20 * 1000);
+  const possibleDuplicate = await Order.findOne({
+    user: req.user._id,
+    shop: shop._id,
+    totalAmount,
+    status: { $ne: 'cancelled' },
+    createdAt: { $gte: duplicateWindow },
+  }).sort({ createdAt: -1 });
+  if (possibleDuplicate) {
+    return res.status(200).json({ order: possibleDuplicate });
+  }
+
   const pickupCode = String(Math.floor(100000 + Math.random() * 900000)); // 6-digit shop→partner handoff code
   const deliveryCode = String(Math.floor(100000 + Math.random() * 900000)); // 6-digit partner→customer drop-off code
 
@@ -422,10 +586,11 @@ async function placeOrder(req, res) {
     items: resolvedItems,
     deliveryAddress,
     phone,
-    deliveryLocation,
+    deliveryLocation: req.body.deliveryLocation,
     deliveryDate: parsedDeliveryDate,
     deliverySlot,
-    paymentMethod,
+    paymentMethod: method,
+    payment: paymentInfo,
     itemsTotal,
     distanceKm,
     deliveryFee,
@@ -445,6 +610,7 @@ async function placeOrder(req, res) {
     await coupon.save();
   }
   await rewardReferralIfFirstOrder(req.user._id, order._id);
+  await rewardLoyaltyMilestone(req.user._id, order._id);
 
   res.status(201).json({ order });
 }
@@ -821,6 +987,10 @@ async function cancelOrder(req, res) {
 
 module.exports = {
   placeOrder,
+  createRazorpayPaymentOrder,
+  reportPaymentFailure,
+  listPaymentFailures,
+  resolvePaymentFailure,
   placeCourierOrder,
   courierQuote,
   listMyCoupons,

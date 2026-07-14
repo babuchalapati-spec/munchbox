@@ -3,6 +3,7 @@ import { getSettings, publishApk, updateSettings } from '../../api/settings';
 
 export default function Settings() {
   const [sms, setSms] = useState({ provider: '', apiKey: '', apiSecret: '', senderId: '', enabled: false });
+  const [maps, setMaps] = useState({ googleMapsApiKey: '' });
   const [app, setApp] = useState({ latestVersionCode: 1, latestVersionName: '1.0', apkUrl: '', updateMessage: '', mandatory: false });
   const [partnerApp, setPartnerApp] = useState({
     latestVersionCode: 1,
@@ -25,6 +26,7 @@ export default function Settings() {
         setSms((prev) => ({ ...prev, ...(s.sms || {}) }));
         setApp((prev) => ({ ...prev, ...(s.app || {}) }));
         setPartnerApp((prev) => ({ ...prev, ...(s.partnerApp || {}) }));
+        setMaps((prev) => ({ ...prev, ...(s.maps || {}) }));
       })
       .catch(() => setError('Could not load settings'))
       .finally(() => setLoading(false));
@@ -45,14 +47,20 @@ export default function Settings() {
     setSaved(false);
   }
 
+  function changeMaps(field, value) {
+    setMaps((m) => ({ ...m, [field]: value }));
+    setSaved(false);
+  }
+
   async function handleSave(e) {
     e.preventDefault();
     setError('');
     try {
-      const updated = await updateSettings({ sms, app, partnerApp });
+      const updated = await updateSettings({ sms, app, partnerApp, maps });
       setSms(updated.sms);
       setApp(updated.app);
       setPartnerApp(updated.partnerApp);
+      setMaps(updated.maps || { googleMapsApiKey: '' });
       setSaved(true);
     } catch (err) {
       setError(err.response?.data?.message || 'Save failed');
@@ -132,6 +140,20 @@ export default function Settings() {
         <label>
           Sender ID
           <input value={sms.senderId} onChange={(e) => change('senderId', e.target.value)} placeholder="e.g. MUNCHB" />
+        </label>
+
+        <h2 style={{ marginTop: 24 }}>Google Maps (admin live map)</h2>
+        <p className="muted">
+          Used only by Admin → Live map to show shops, delivery partners and customers on one map. Get a key from{' '}
+          <a href="https://console.cloud.google.com/google/maps-apis" target="_blank" rel="noopener noreferrer">
+            Google Cloud Console
+          </a>{' '}
+          (enable "Maps JavaScript API") and restrict it to this site's domain. The mobile apps don't need this — they
+          use OpenStreetMap already.
+        </p>
+        <label>
+          Google Maps API key
+          <input value={maps.googleMapsApiKey} onChange={(e) => changeMaps('googleMapsApiKey', e.target.value)} placeholder="AIza..." />
         </label>
 
         <h2 style={{ marginTop: 24 }}>App auto-update</h2>

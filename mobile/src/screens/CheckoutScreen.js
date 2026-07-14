@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import {useCart} from '../context/CartContext';
 import {useAuth} from '../context/AuthContext';
-import {placeOrder, listMyOrders} from '../api/orders';
+import {placeOrder, createRazorpayOrder, reportPaymentFailure, listMyOrders} from '../api/orders';
 import {deliveryQuote} from '../api/shops';
 import {requestLocationPermission, getCurrentPosition} from '../location';
 import {colors} from '../theme';
@@ -44,6 +44,7 @@ export default function CheckoutScreen({navigation}) {
   const [deliverySlot, setDeliverySlot] = useState('');
   const [couponCode, setCouponCode] = useState('');
   const [tip, setTip] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState('COD'); // 'COD' | 'online'
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -61,14 +62,21 @@ export default function CheckoutScreen({navigation}) {
       .then((orders) => {
         const seen = new Set();
         const unique = [];
+        // listMyOrders is sorted most-recent-first, so unique[0] is the last address used.
         orders.forEach((o) => {
           if (!o.deliveryAddress || seen.has(o.deliveryAddress)) return;
           seen.add(o.deliveryAddress);
           unique.push({address: o.deliveryAddress, location: o.deliveryLocation});
         });
         setPreviousAddresses(unique.slice(0, 5));
+        // Pre-fill with the most recent delivery address so a returning customer doesn't
+        // have to type or pick anything — they just confirm it (or tap another one/change it).
+        if (unique.length > 0) {
+          usePreviousAddress(unique[0]);
+        }
       })
       .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function usePreviousAddress(saved) {
@@ -143,20 +151,64 @@ export default function CheckoutScreen({navigation}) {
       return;
     }
 
+    const orderPayload = {
+      shop: shop._id,
+      items: items.map(({key, ...rest}) => rest),
+      deliveryAddress,
+      phone,
+      deliveryLocation: location,
+      deliveryDate,
+      deliverySlot: deliverySlot || undefined,
+      couponCode: couponCode || undefined,
+      tip,
+    };
+
     setError('');
     setSubmitting(true);
     try {
-      await placeOrder({
-        shop: shop._id,
-        items: items.map(({key, ...rest}) => rest),
-        deliveryAddress,
-        phone,
-        deliveryLocation: location,
-        deliveryDate,
-        deliverySlot: deliverySlot || undefined,
-        couponCode: couponCode || undefined,
-        tip,
-      });
+      if (paymentMethod === 'online') {
+        const checkoutOrder = await createRazorpayOrder(orderPayload);
+        setSubmitting(false);
+        navigation.navigate('RazorpayCheckout', {
+          razorpayOrderId: checkoutOrder.razorpayOrderId,
+          amount: checkoutOrder.amount,
+          currency: checkoutOrder.currency,
+          keyId: checkoutOrder.keyId,
+          description: `Order at ${shop?.name || 'Munchbox'}`,
+          prefill: {name: user?.name || '', email: user?.email || '', contact: phone},
+          onSuccess: async (result) => {
+            setSubmitting(true);
+            try {
+              await placeOrder({
+                ...orderPayload,
+                paymentMethod: 'online',
+                payment: {
+                  razorpayOrderId: result.razorpay_order_id,
+                  razorpayPaymentId: result.razorpay_payment_id,
+                  razorpaySignature: result.razorpay_signature,
+                },
+              });
+              clear();
+              navigation.reset({index: 0, routes: [{name: 'Orders'}]});
+            } catch (err) {
+              setError(err.response?.data?.message || 'Payment succeeded but the order could not be placed. Please contact support — do not pay again.');
+            } finally {
+              setSubmitting(false);
+            }
+          },
+          onFailure: (reason) => {
+            reportPaymentFailure({
+              amount: checkoutOrder.totalAmount,
+              reason,
+              razorpayOrderId: checkoutOrder.razorpayOrderId,
+            }).catch(() => {});
+            setError(reason === 'Payment cancelled' ? 'Payment cancelled.' : `Payment failed: ${reason}. You can try again or pay Cash on Delivery.`);
+          },
+        });
+        return;
+      }
+
+      await placeOrder({...orderPayload, paymentMethod: 'COD'});
       clear();
       navigation.reset({index: 0, routes: [{name: 'Orders'}]});
     } catch (err) {
@@ -259,6 +311,24 @@ export default function CheckoutScreen({navigation}) {
         placeholder="WELCOME123456"
       />
 
+      <Text style={styles.label}>Payment method</Text>
+      <View style={styles.tipRow}>
+        <TouchableOpacity
+          style={[styles.tipChip, paymentMethod === 'COD' && styles.tipChipActive]}
+          onPress={() => setPaymentMethod('COD')}>
+          <Text style={[styles.tipChipText, paymentMethod === 'COD' && styles.tipChipTextActive]}>
+            💵 Cash on Delivery
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tipChip, paymentMethod === 'online' && styles.tipChipActive]}
+          onPress={() => setPaymentMethod('online')}>
+          <Text style={[styles.tipChipText, paymentMethod === 'online' && styles.tipChipTextActive]}>
+            💳 Pay online (UPI / Card)
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <Text style={styles.label}>Tip your delivery partner (optional)</Text>
       <View style={styles.tipRow}>
         {TIP_OPTIONS.map((amount) => (
@@ -306,7 +376,9 @@ export default function CheckoutScreen({navigation}) {
         {submitting ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.buttonText}>Place order</Text>
+          <Text style={styles.buttonText}>
+            {paymentMethod === 'online' ? `Pay ₹${grandTotal} online` : 'Place order (Cash on Delivery)'}
+          </Text>
         )}
       </TouchableOpacity>
     </ScrollView>

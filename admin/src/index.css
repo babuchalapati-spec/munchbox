@@ -76,16 +76,36 @@ button:disabled {
 
 .sidebar {
   width: 220px;
-  background: #2c2420;
+  background: linear-gradient(180deg, #2c2420 0%, #34201f 100%);
   color: #fff;
   padding: 1.5rem 1rem;
   display: flex;
   flex-direction: column;
 }
 
-.sidebar h2 {
-  font-size: 1.1rem;
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
   margin: 0 0 1.5rem;
+}
+
+.sidebar-brand-mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #ff7a59 0%, #e23364 55%, #8e24aa 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.sidebar-brand h2 {
+  font-size: 1.05rem;
+  margin: 0;
+  line-height: 1.2;
 }
 
 .sidebar nav {
@@ -103,7 +123,7 @@ button:disabled {
 }
 
 .sidebar nav a.active {
-  background: #c2185b;
+  background: linear-gradient(135deg, #ff7a59 0%, #e23364 55%, #8e24aa 100%);
   color: #fff;
 }
 
@@ -135,7 +155,17 @@ button:disabled {
   flex-direction: column;
   justify-content: center;
 }
-.login-hero-mark { font-size: 3rem; }
+.login-hero-mark {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.4rem;
+  margin-bottom: 0.5rem;
+}
 .login-hero h1 { font-size: 2.4rem; margin: 0.5rem 0 0.25rem; }
 .login-hero p { font-size: 1.05rem; opacity: 0.95; margin: 0 0 1.5rem; }
 .login-hero-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.6rem; }

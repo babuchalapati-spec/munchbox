@@ -6,6 +6,7 @@ import StackNavigator from './StackNavigator';
 import BottomTabNavigator from './BottomTabNavigator';
 
 import OtpLoginScreen from '../screens/OtpLoginScreen';
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import DeliveryRegisterScreen from '../screens/DeliveryRegisterScreen';
 import ShopLoginScreen from '../screens/ShopLoginScreen';
@@ -27,9 +28,12 @@ import DeliveryOrderDetailScreen from '../screens/DeliveryOrderDetailScreen';
 import NearbyDeliveriesScreen from '../screens/NearbyDeliveriesScreen';
 import ShopOwnerScreen from '../screens/ShopOwnerScreen';
 import EarningsScreen from '../screens/EarningsScreen';
+import RazorpayCheckoutScreen from '../screens/RazorpayCheckoutScreen';
+import HelpChatScreen from '../screens/HelpChatScreen';
 
 const authScreens = {
   OtpLogin: { component: OtpLoginScreen, headerShown: false },
+  ForgotPassword: { component: ForgotPasswordScreen, title: 'Reset password' },
   Register: { component: RegisterScreen, title: 'Create account' },
   DeliveryRegister: { component: DeliveryRegisterScreen, title: 'Delivery partner' },
   ShopLogin: { component: ShopLoginScreen, headerShown: false },
@@ -51,9 +55,11 @@ const customerScreens = {
   ProductDetail: { component: ProductDetailScreen, title: 'Details' },
   Cart: { component: CartScreen, title: 'Your cart' },
   Checkout: { component: CheckoutScreen, title: 'Checkout' },
+  RazorpayCheckout: { component: RazorpayCheckoutScreen, title: 'Payment' },
   Orders: { component: OrdersScreen, title: 'My orders' },
   OrderTracking: { component: OrderTrackingScreen, title: 'Track order' },
   Chat: { component: ChatScreen, title: 'Chat' },
+  Help: { component: HelpChatScreen, title: 'Help' },
   Account: { component: AccountScreen, title: 'Account' },
 };
 

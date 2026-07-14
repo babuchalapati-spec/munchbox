@@ -56,3 +56,17 @@ export async function getMe() {
   const {data} = await client.get('/auth/me');
   return data.user;
 }
+
+// Forgot-password: verifying the phone-login OTP proves ownership, then sets a new
+// password — no admin needed. Uses the same OTP as request-otp.
+export async function resetPasswordWithOtp(phone, code, newPassword, role) {
+  const {data} = await client.post('/auth/reset-password', {phone, code, newPassword, role});
+  return data;
+}
+
+// Lets a logged-in user (e.g. an OTP-only customer) set a real password so they have
+// a fallback login method if SMS ever has issues.
+export async function setPassword(password) {
+  const {data} = await client.put('/auth/me/password', {password});
+  return data;
+}

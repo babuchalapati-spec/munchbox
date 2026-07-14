@@ -24,7 +24,7 @@ async function getPaymentInfo(req, res) {
 
 async function updateSettings(req, res) {
   const settings = await Settings.getSingleton();
-  const { sms, app, partnerApp, payments, finance } = req.body;
+  const { sms, app, partnerApp, payments, finance, maps } = req.body;
 
   if (payments) {
     if (!settings.payments) settings.payments = {};
@@ -62,6 +62,11 @@ async function updateSettings(req, res) {
   if (finance) {
     if (!settings.finance) settings.finance = {};
     if (finance.taxPercent !== undefined) settings.finance.taxPercent = Number(finance.taxPercent) || 0;
+  }
+
+  if (maps) {
+    if (!settings.maps) settings.maps = {};
+    if (maps.googleMapsApiKey !== undefined) settings.maps.googleMapsApiKey = maps.googleMapsApiKey;
   }
 
   await settings.save();
@@ -105,7 +110,7 @@ async function publishApk(req, res) {
     const publicBaseUrl = getPublicBaseUrl(req).replace(/\/$/, '');
     targetApp.apkUrl = `${publicBaseUrl}/downloads/${targetName}`;
     targetApp.updateMessage = updateMessage || targetApp.updateMessage || 'A new version is available.';
-    targetApp.mandatory = mandatory === true || mandatory === 'true' || targetApp.mandatory === true;
+    targetApp.mandatory = mandatory === true || mandatory === 'true';
   }
 
   await settings.save();

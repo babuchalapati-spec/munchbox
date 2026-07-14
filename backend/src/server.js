@@ -17,6 +17,7 @@ const appRoutes = require('./routes/appRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const geoRoutes = require('./routes/geoRoutes');
 const financeRoutes = require('./routes/financeRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
 
 const app = express();
 
@@ -60,6 +61,7 @@ app.use('/api/app', appRoutes);
 app.use('/api/uploads', uploadRoutes);
 app.use('/api/geo', geoRoutes);
 app.use('/api/finance', financeRoutes);
+app.use('/api/payments', paymentRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

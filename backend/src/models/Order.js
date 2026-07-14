@@ -73,6 +73,13 @@ const orderSchema = new mongoose.Schema(
     tipAmount: { type: Number, default: 0 },
     totalAmount: { type: Number, required: true },
     paymentMethod: { type: String, default: 'COD' },
+    payment: {
+      method: { type: String, enum: ['COD', 'online'], default: 'COD' },
+      status: { type: String, enum: ['pending', 'paid', 'failed', 'refunded'], default: 'pending' },
+      gatewayOrderId: { type: String, default: '' },
+      gatewayPaymentId: { type: String, default: '' },
+      paidAt: { type: Date, default: null },
+    },
     assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     // 6-digit code the shop shows at handoff; the delivery partner enters it to confirm pickup.
     pickupCode: { type: String },

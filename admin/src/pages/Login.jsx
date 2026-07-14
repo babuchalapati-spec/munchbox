@@ -13,7 +13,6 @@ export default function Login() {
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [otpStep, setOtpStep] = useState('phone');
-  const [devHint, setDevHint] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   // Two-factor (authenticator code) — second step after password or OTP, if enabled.
@@ -59,7 +58,9 @@ export default function Login() {
     try {
       const res = await requestOtp(phone);
       setOtpStep('code');
-      setDevHint(res.devMode && res.devCode ? `Dev code: ${res.devCode}` : '');
+      // Dev-mode OTP (only present when real SMS isn't configured yet) goes to the
+      // browser console only — never shown on the page itself.
+      if (res.devMode && res.devCode) console.log(`[dev OTP] ${phone}: ${res.devCode}`);
     } catch (err) {
       setError(err.response?.data?.message || 'Could not send OTP');
     } finally {
@@ -177,7 +178,6 @@ export default function Login() {
           ) : (
             <form onSubmit={verifyOtpSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <p className="login-sub">OTP sent to {phone}</p>
-              {devHint && <p style={{ color: '#a86b00', fontSize: '0.8rem' }}>{devHint}</p>}
               <label>
                 Enter OTP
                 <input value={code} onChange={(e) => setCode(e.target.value)} required autoFocus />

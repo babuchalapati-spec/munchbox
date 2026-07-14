@@ -2,23 +2,50 @@ import React, {useEffect, useState} from 'react';
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import {useAuth} from '../context/AuthContext';
 import {listMyCoupons} from '../api/orders';
+import {setPassword as setPasswordApi} from '../api/auth';
 import {colors} from '../theme';
 
 export default function AccountScreen({navigation}) {
   const {user, logout} = useAuth();
   const [coupons, setCoupons] = useState([]);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [savingPassword, setSavingPassword] = useState(false);
 
   useEffect(() => {
     listMyCoupons()
       .then(setCoupons)
       .catch(() => setCoupons([]));
   }, []);
+
+  async function savePassword() {
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordError('Password must be at least 6 characters');
+      return;
+    }
+    setPasswordError('');
+    setSavingPassword(true);
+    try {
+      await setPasswordApi(newPassword);
+      setNewPassword('');
+      setShowPasswordForm(false);
+      Alert.alert('Password set', 'You can now also sign in with your phone number and this password.');
+    } catch (err) {
+      setPasswordError(err.response?.data?.message || 'Could not set password');
+    } finally {
+      setSavingPassword(false);
+    }
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -41,6 +68,39 @@ export default function AccountScreen({navigation}) {
         <Text style={styles.linkChevron}>{'>'}</Text>
       </TouchableOpacity>
 
+      <TouchableOpacity
+        style={styles.linkRow}
+        onPress={() => navigation.navigate('Help')}>
+        <Text style={styles.linkRowText}>Help & FAQ</Text>
+        <Text style={styles.linkChevron}>{'>'}</Text>
+      </TouchableOpacity>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Password login</Text>
+        <Text style={styles.body}>
+          Set a password so you can sign in with your phone number and password, as a backup to OTP.
+        </Text>
+        {showPasswordForm ? (
+          <>
+            {passwordError ? <Text style={styles.error}>{passwordError}</Text> : null}
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="New password"
+              secureTextEntry
+              value={newPassword}
+              onChangeText={setNewPassword}
+            />
+            <TouchableOpacity style={styles.smallButton} onPress={savePassword} disabled={savingPassword}>
+              {savingPassword ? <ActivityIndicator color="#fff" /> : <Text style={styles.smallButtonText}>Save password</Text>}
+            </TouchableOpacity>
+          </>
+        ) : (
+          <TouchableOpacity style={styles.smallButton} onPress={() => setShowPasswordForm(true)}>
+            <Text style={styles.smallButtonText}>Set password</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Refer and earn</Text>
         <Text style={styles.body}>
@@ -59,7 +119,9 @@ export default function AccountScreen({navigation}) {
             <View key={coupon._id} style={styles.couponRow}>
               <Text style={styles.couponCode}>{coupon.code}</Text>
               <Text style={styles.meta}>
-                Rs {coupon.amount} off orders above Rs {coupon.minOrderAmount}
+                {coupon.type === 'free_delivery'
+                  ? 'Free delivery on your next order — thanks for being a regular!'
+                  : `Rs ${coupon.amount} off orders above Rs ${coupon.minOrderAmount}`}
               </Text>
             </View>
           ))
@@ -171,6 +233,25 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   couponCode: {color: colors.text, fontWeight: '800', fontSize: 14},
+  passwordInput: {
+    alignSelf: 'stretch',
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 8,
+  },
+  smallButton: {
+    alignSelf: 'stretch',
+    backgroundColor: colors.primary,
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  smallButtonText: {color: '#fff', fontWeight: '600', fontSize: 13},
+  error: {color: '#c62828', alignSelf: 'stretch', marginTop: 8},
   logout: {
     backgroundColor: colors.primary,
     borderRadius: 8,

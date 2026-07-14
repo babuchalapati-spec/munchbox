@@ -216,6 +216,9 @@ async function requestOtp(req, res) {
   if (!result.sent) {
     payload.devMode = true;
     payload.devCode = code; // always 123456 in dev
+    // Real SMS isn't configured (or failed) — the OTP is no longer shown on any
+    // screen, so this terminal line is the only way to see it for testing.
+    console.log(`[dev OTP] ${phone}: ${code}`);
   }
   res.json(payload);
 }
@@ -263,6 +266,7 @@ async function verifyOtp(req, res) {
 
   // Customer login (default): find or create the CUSTOMER account for this phone.
   let user = await User.findOne({ phone, role: 'customer' });
+  let isNewUser = false;
   if (!user) {
     const displayName = name || otp.name || `User ${phone.slice(-4)}`;
     const email = `${phone}@customer.munchbox`;
@@ -270,13 +274,54 @@ async function verifyOtp(req, res) {
     user = await User.create({ name: displayName, email, password: hashed, phone, role: 'customer' });
     await ensureReferralCode(user);
     await attachReferral(user, referralCode || otp.referralCode);
+    isNewUser = true;
   } else if (name && !user.name) {
     user.name = name;
     await user.save();
   }
   await ensureReferralCode(user);
 
-  res.json({ user: toPublicUser(user), token: signToken(user) });
+  res.json({ user: toPublicUser(user), token: signToken(user), isNewUser });
+}
+
+// Self-service "forgot password": verifying the same OTP used for phone login proves
+// ownership of the number, then lets the user set a new password — no admin needed.
+// Only works once SMS is actually configured (see admin Settings); until then this is
+// the same dev-mode fallback as OTP login itself.
+async function resetPasswordWithOtp(req, res) {
+  const { phone, code, newPassword, role } = req.body;
+  if (!phone || !code || !newPassword) {
+    return res.status(400).json({ message: 'phone, code and newPassword are required' });
+  }
+  if (String(newPassword).length < 6) {
+    return res.status(400).json({ message: 'Password must be at least 6 characters' });
+  }
+  const otp = await Otp.findOne({ phone });
+  if (!otp || otp.code !== String(code).trim() || otp.expiresAt < new Date()) {
+    return res.status(400).json({ message: 'Invalid or expired OTP' });
+  }
+  await Otp.deleteOne({ _id: otp._id });
+
+  const targetRole = role === 'delivery' || role === 'shop' ? role : 'customer';
+  const user = await User.findOne({ phone, role: targetRole });
+  if (!user) {
+    return res.status(404).json({ message: 'No account found for this number' });
+  }
+  user.password = await bcrypt.hash(newPassword, 10);
+  await user.save();
+  res.json({ message: 'Password updated. You can now log in with your new password.' });
+}
+
+// Lets an already-logged-in user (typically an OTP-only customer) set a real password
+// for the first time, so they have a password-login fallback if SMS ever has issues.
+async function setPassword(req, res) {
+  const { password } = req.body;
+  if (!password || String(password).length < 6) {
+    return res.status(400).json({ message: 'Password must be at least 6 characters' });
+  }
+  req.user.password = await bcrypt.hash(password, 10);
+  await req.user.save();
+  res.json({ message: 'Password updated' });
 }
 
 async function getMe(req, res) {
@@ -598,4 +643,6 @@ module.exports = {
   reviewKyc,
   requestOtp,
   verifyOtp,
+  resetPasswordWithOtp,
+  setPassword,
 };
