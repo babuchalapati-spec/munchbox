@@ -1,6 +1,6 @@
 import {useEffect, useState} from 'react';
 import {useNavigate} from 'react-router-dom';
-import client from '../api/client';
+import client, {imageUri} from '../api/client';
 import {useAuth} from '../context/AuthContext';
 
 const NEXT_STATUS = {
@@ -335,8 +335,13 @@ export default function ShopDashboard() {
               </>
             ) : (
               <>
-                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                  <div><strong>{p.name}</strong> <span className="muted">₹{p.basePrice}</span></div>
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10}}>
+                  <div style={{display: 'flex', alignItems: 'center', gap: 10, minWidth: 0}}>
+                    <div style={{width: 48, height: 48, borderRadius: 8, background: '#f6f3f0', flexShrink: 0, overflow: 'hidden'}}>
+                      {p.imageUrl && <img src={imageUri(p.imageUrl)} alt="" style={{width: '100%', height: '100%', objectFit: 'cover'}} />}
+                    </div>
+                    <div><strong>{p.name}</strong><br /><span className="muted">₹{p.basePrice}</span></div>
+                  </div>
                   <button className="btn" style={{width: 'auto', flex: '0 0 auto', padding: '8px 12px', background: p.available ? '#2e7d32' : '#c62828'}} onClick={() => toggleStock(p)}>
                     {p.available ? '✅ In stock' : '⏸️ Out of stock'}
                   </button>
