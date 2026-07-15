@@ -44,6 +44,8 @@ export default function ShopOwnerScreen({ navigation }) {
   const [topUp, setTopUp] = useState({ amount: '', reference: '', open: false, busy: false });
   const [editingItemId, setEditingItemId] = useState(null);
   const [editDraft, setEditDraft] = useState({ name: '', basePrice: '' });
+  const [brokenImages, setBrokenImages] = useState(() => new Set());
+  const markBroken = (id) => setBrokenImages((prev) => new Set(prev).add(id));
 
   const shopId = user?.shop?._id || user?.shop;
 
@@ -416,7 +418,7 @@ export default function ShopOwnerScreen({ navigation }) {
           </View>
           <TextInput
             style={styles.addInput}
-            placeholder="Or paste an image URL (https://...)"
+            placeholder="Or paste a direct image URL (ends in .jpg/.png, not a webpage)"
             autoCapitalize="none"
             value={newItem.imageLink}
             onChangeText={(v) => setNewItem((s) => ({ ...s, imageLink: v }))}
@@ -457,8 +459,8 @@ export default function ShopOwnerScreen({ navigation }) {
             </View>
           ) : (
             <View key={p._id} style={styles.itemRow}>
-              {p.imageUrl ? (
-                <Image source={{ uri: imageUri(p.imageUrl) }} style={styles.itemThumb} />
+              {p.imageUrl && !brokenImages.has(p._id) ? (
+                <Image source={{ uri: imageUri(p.imageUrl) }} style={styles.itemThumb} onError={() => markBroken(p._id)} />
               ) : (
                 <View style={[styles.itemThumb, styles.itemThumbEmpty]}><Text style={styles.itemThumbIcon}>🍽️</Text></View>
               )}

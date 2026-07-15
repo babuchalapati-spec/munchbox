@@ -35,7 +35,7 @@ export default function ShopDetail() {
           products.map((p) => (
             <Link to={`/product/${p._id}`} key={p._id} className="card" style={{display: 'flex', gap: 12, alignItems: 'center', opacity: p.available ? 1 : 0.6}}>
               <div style={{width: 56, height: 56, borderRadius: 10, background: '#f6f3f0', flexShrink: 0, overflow: 'hidden'}}>
-                {p.imageUrl && <img src={imageUri(p.imageUrl)} alt="" style={{width: '100%', height: '100%', objectFit: 'cover'}} />}
+                {p.imageUrl && <img src={imageUri(p.imageUrl)} alt="" onError={(e) => { e.target.style.display = 'none'; }} style={{width: '100%', height: '100%', objectFit: 'cover'}} />}
               </div>
               <div style={{flex: 1}}>
                 <div style={{fontWeight: 700}}>{p.name}</div>

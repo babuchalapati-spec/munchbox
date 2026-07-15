@@ -315,7 +315,7 @@ export default function ShopDashboard() {
           </div>
           <label className="label">Photo (optional)</label>
           <input type="file" accept="image/*" onChange={(e) => setNewItem((s) => ({...s, imageFile: e.target.files[0], imageLink: ''}))} style={{marginBottom: 12}} />
-          <input className="input" placeholder="Or paste an image URL (https://...)" value={newItem.imageLink} onChange={(e) => setNewItem((s) => ({...s, imageLink: e.target.value, imageFile: null}))} />
+          <input className="input" placeholder="Or paste a direct image URL (must end in .jpg/.png, not a webpage)" value={newItem.imageLink} onChange={(e) => setNewItem((s) => ({...s, imageLink: e.target.value, imageFile: null}))} />
           <input className="input" placeholder="Toppings / add-ons (e.g. Extra cheese +40, Olives +20)" value={newItem.addOns} onChange={(e) => setNewItem((s) => ({...s, addOns: e.target.value}))} />
           <input className="input" placeholder="Price ₹" value={newItem.basePrice} onChange={(e) => setNewItem((s) => ({...s, basePrice: e.target.value.replace(/[^0-9]/g, '')}))} />
           <button className="btn" onClick={addItem} disabled={adding}>{adding ? 'Adding…' : '+ Add item'}</button>
@@ -338,7 +338,7 @@ export default function ShopDashboard() {
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10}}>
                   <div style={{display: 'flex', alignItems: 'center', gap: 10, minWidth: 0}}>
                     <div style={{width: 48, height: 48, borderRadius: 8, background: '#f6f3f0', flexShrink: 0, overflow: 'hidden'}}>
-                      {p.imageUrl && <img src={imageUri(p.imageUrl)} alt="" style={{width: '100%', height: '100%', objectFit: 'cover'}} />}
+                      {p.imageUrl && <img src={imageUri(p.imageUrl)} alt="" onError={(e) => { e.target.style.display = 'none'; }} style={{width: '100%', height: '100%', objectFit: 'cover'}} />}
                     </div>
                     <div><strong>{p.name}</strong><br /><span className="muted">₹{p.basePrice}</span></div>
                   </div>

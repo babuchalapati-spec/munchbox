@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { useCart } from '../context/CartContext';
 import { imageUri } from '../api/client';
@@ -6,6 +6,8 @@ import { colors } from '../theme';
 
 export default function CartScreen({ navigation }) {
   const { items, shop, updateQuantity, total } = useCart();
+  const [brokenImages, setBrokenImages] = useState(() => new Set());
+  const markBroken = (key) => setBrokenImages((prev) => new Set(prev).add(key));
 
   if (items.length === 0) {
     return (
@@ -32,8 +34,8 @@ export default function CartScreen({ navigation }) {
         contentContainerStyle={styles.list}
         renderItem={({ item }) => (
           <View style={styles.row}>
-            {item.imageUrl ? (
-              <Image source={{ uri: imageUri(item.imageUrl) }} style={styles.thumb} />
+            {item.imageUrl && !brokenImages.has(item.key) ? (
+              <Image source={{ uri: imageUri(item.imageUrl) }} style={styles.thumb} onError={() => markBroken(item.key)} />
             ) : (
               <View style={[styles.thumb, styles.thumbEmpty]}>
                 <Text style={{ fontSize: 18 }}>🍽️</Text>

@@ -73,7 +73,7 @@ export default function ProductDetail() {
         <h2>{product.name}</h2>
       </div>
       <div className="page-pad" style={{flex: 1, paddingBottom: 90}}>
-        {product.imageUrl && <img src={imageUri(product.imageUrl)} alt="" style={{width: '100%', height: 200, objectFit: 'cover', borderRadius: 10, marginBottom: 16}} />}
+        {product.imageUrl && <img src={imageUri(product.imageUrl)} alt="" onError={(e) => { e.target.style.display = 'none'; }} style={{width: '100%', height: 200, objectFit: 'cover', borderRadius: 10, marginBottom: 16}} />}
         <p className="muted">{product.description}</p>
         {outOfStock && <p className="error">Currently out of stock at this shop</p>}
 

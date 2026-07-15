@@ -62,7 +62,7 @@ export default function Home() {
           filtered.map((shop) => (
             <Link to={`/shops/${shop._id}`} key={shop._id} className="card" style={{display: 'flex', gap: 12, alignItems: 'center'}}>
               <div style={{width: 56, height: 56, borderRadius: 10, background: categoryThemes[shop.category]?.soft || '#fce4ec', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, flexShrink: 0, overflow: 'hidden'}}>
-                {shop.imageUrl ? <img src={imageUri(shop.imageUrl)} alt="" style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : (categoryThemes[shop.category]?.icon || '🏪')}
+                {shop.imageUrl ? <img src={imageUri(shop.imageUrl)} alt="" onError={(e) => { e.target.style.display = 'none'; }} style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : (categoryThemes[shop.category]?.icon || '🏪')}
               </div>
               <div style={{flex: 1}}>
                 <div style={{fontWeight: 700}}>{shop.name}</div>

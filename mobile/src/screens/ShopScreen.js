@@ -22,6 +22,10 @@ export default function ShopScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeCategory, setActiveCategory] = useState('All');
+  // Tracks items whose photo URL failed to load (broken link, bad paste), so we fall
+  // back to the placeholder icon instead of a broken-image box.
+  const [brokenImages, setBrokenImages] = useState(() => new Set());
+  const markBroken = (id) => setBrokenImages((prev) => new Set(prev).add(id));
 
   const load = useCallback(async () => {
     const data = await listProducts(shop._id);
@@ -124,8 +128,8 @@ export default function ShopScreen({ route, navigation }) {
               )}
             </View>
             <View style={styles.imageWrap}>
-              {item.imageUrl ? (
-                <Image source={{ uri: imageUri(item.imageUrl) }} style={styles.image} />
+              {item.imageUrl && !brokenImages.has(item._id) ? (
+                <Image source={{ uri: imageUri(item.imageUrl) }} style={styles.image} onError={() => markBroken(item._id)} />
               ) : (
                 <View style={[styles.image, styles.imagePlaceholder]}>
                   <Text style={{ fontSize: 22 }}>🍽️</Text>

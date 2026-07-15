@@ -38,6 +38,7 @@ export default function ProductDetailScreen({ route, navigation }) {
   const [addOns, setAddOns] = useState('');
   const [headcount, setHeadcount] = useState('');
   const [notes, setNotes] = useState('');
+  const [imageBroken, setImageBroken] = useState(false);
   const [quantity, setQuantity] = useState(1);
 
   const weightDelta = product.weightOptions?.find((w) => w.label === weight)?.priceDelta || 0;
@@ -97,8 +98,8 @@ export default function ProductDetailScreen({ route, navigation }) {
   return (
     <View style={{ flex: 1 }}>
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {product.imageUrl ? (
-        <Image source={{ uri: imageUri(product.imageUrl) }} style={styles.image} />
+      {product.imageUrl && !imageBroken ? (
+        <Image source={{ uri: imageUri(product.imageUrl) }} style={styles.image} onError={() => setImageBroken(true)} />
       ) : null}
       <Text style={styles.title}>{product.name}</Text>
       <Text style={styles.description}>{product.description}</Text>
