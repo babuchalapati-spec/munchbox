@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // the app point at a new server address (e.g. after the WiFi IP changes) without
 // needing a new APK build — just open Server Settings and type the new address.
 // If testing on the Android emulator instead, switch this to http://10.0.2.2:5001/api.
-export const DEFAULT_API_URL = 'http://10.23.21.199:5001/api';
+export const DEFAULT_API_URL = 'http://192.168.1.8:5001/api';
 
 const STORAGE_KEY = 'server_url_override';
 
