@@ -48,6 +48,7 @@ export default function ShopLogin() {
           <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
           <button className="btn" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
         </form>
+        <Link className="link" to="/shop-register">New shop? Register here</Link>
         <Link className="link" to="/login">← Back to customer login</Link>
       </div>
     </div>

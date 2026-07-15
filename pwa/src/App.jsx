@@ -5,7 +5,9 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ShopLogin from './pages/ShopLogin';
+import ShopRegister from './pages/ShopRegister';
 import DeliveryLogin from './pages/DeliveryLogin';
+import DeliveryRegister from './pages/DeliveryRegister';
 import Home from './pages/Home';
 import ShopDashboard from './pages/ShopDashboard';
 import DeliveryDashboard from './pages/DeliveryDashboard';
@@ -48,7 +50,9 @@ function Routed() {
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/shop-login" element={<ShopLogin />} />
+      <Route path="/shop-register" element={<ShopRegister />} />
       <Route path="/delivery-login" element={<DeliveryLogin />} />
+      <Route path="/delivery-register" element={<DeliveryRegister />} />
       <Route path="/" element={<Protected><RoleHome /></Protected>} />
       <Route path="/shops/:id" element={<Protected><CustomerOnly><ShopDetail /></CustomerOnly></Protected>} />
       <Route path="/product/:id" element={<Protected><CustomerOnly><ProductDetail /></CustomerOnly></Protected>} />

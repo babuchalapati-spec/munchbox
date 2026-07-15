@@ -53,7 +53,7 @@ export default function DeliveryLogin() {
     try {
       const result = await loginWithOtp(phone, code, undefined, 'delivery');
       if (result.needsRegistration) {
-        setError('No delivery account for this number yet. Ask the admin to create one first.');
+        navigate('/delivery-register');
         return;
       }
       navigate('/');
@@ -99,6 +99,7 @@ export default function DeliveryLogin() {
             <button className="btn" disabled={busy}>{busy ? 'Verifying…' : 'Verify & sign in'}</button>
           </form>
         )}
+        <Link className="link" to="/delivery-register">New delivery partner? Register here</Link>
         <Link className="link" to="/login">← Back to customer login</Link>
       </div>
     </div>
