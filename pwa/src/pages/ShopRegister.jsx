@@ -11,6 +11,8 @@ const CATEGORIES = [
 export default function ShopRegister() {
   const navigate = useNavigate();
   const [form, setForm] = useState({name: '', email: '', password: '', phone: '', shopName: '', category: 'cake', address: ''});
+  const [location, setLocation] = useState(null);
+  const [locating, setLocating] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -19,15 +21,37 @@ export default function ShopRegister() {
     setForm((f) => ({...f, [field]: value}));
   }
 
+  function useMyLocation() {
+    if (!navigator.geolocation) {
+      setError('Location is not available in this browser.');
+      return;
+    }
+    setLocating(true);
+    setError('');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocation({lat: pos.coords.latitude, lng: pos.coords.longitude});
+        setLocating(false);
+      },
+      () => {
+        setError('Location permission denied. You can still register — we\'ll estimate the location from your typed address instead.');
+        setLocating(false);
+      }
+    );
+  }
+
   async function submit(e) {
     e.preventDefault();
     if (!form.name || !form.email || !form.password || !form.phone || !form.shopName) {
       return setError('Name, email, password, phone and shop name are required');
     }
+    if (!location && !form.address) {
+      return setError('Set your shop\'s location (or type a full address) so customers can find you');
+    }
     setError('');
     setBusy(true);
     try {
-      const {data} = await client.post('/auth/shop-register', form);
+      const {data} = await client.post('/auth/shop-register', {...form, lat: location?.lat, lng: location?.lng});
       setMessage(data.message || 'Registration submitted. An admin will review and approve your shop before you can log in.');
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed');
@@ -79,7 +103,12 @@ export default function ShopRegister() {
             ))}
           </div>
           <label className="label">Shop address</label>
-          <textarea className="input" value={form.address} onChange={(e) => update('address', e.target.value)} rows={2} />
+          <textarea className="input" value={form.address} onChange={(e) => update('address', e.target.value)} rows={2} placeholder="Street, area, city, pincode" />
+
+          <button type="button" className="btn btn-outline" onClick={useMyLocation} disabled={locating} style={{marginBottom: 16}}>
+            {locating ? 'Locating…' : location ? '✓ Location set — tap to update' : '📍 Pin my shop\'s exact GPS location'}
+          </button>
+
           <button className="btn" disabled={busy}>{busy ? 'Submitting…' : 'Register shop'}</button>
         </form>
         <Link className="link" to="/shop-login">← Back to sign in</Link>

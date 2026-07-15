@@ -12,6 +12,7 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import { useAuth } from '../context/AuthContext';
 import { shopRegister, requestOtp } from '../api/auth';
+import { requestLocationPermission, getCurrentPosition } from '../location';
 import { colors, brandGradient } from '../theme';
 
 const CATEGORIES = [
@@ -31,8 +32,28 @@ export default function ShopLoginScreen({ navigation }) {
   const [code, setCode] = useState('');
   const [ticket, setTicket] = useState('');
   const [form, setForm] = useState({ name: '', phone: '', shopName: '', category: 'cake', address: '' });
+  const [location, setLocation] = useState(null);
+  const [locating, setLocating] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+
+  async function useMyLocation() {
+    setError('');
+    setLocating(true);
+    try {
+      const granted = await requestLocationPermission();
+      if (!granted) {
+        setError('Location permission is needed to pin your shop. Please allow it in settings.');
+        return;
+      }
+      const pos = await getCurrentPosition();
+      setLocation(pos);
+    } catch (err) {
+      setError(err.message || 'Could not get your location. Please try again.');
+    } finally {
+      setLocating(false);
+    }
+  }
 
   // OTP login
   const [phone, setPhone] = useState('');
@@ -111,6 +132,9 @@ export default function ShopLoginScreen({ navigation }) {
     if (!form.name || !email || !password || !form.phone || !form.shopName) {
       return setError('Name, email, password, phone and shop name are required');
     }
+    if (!location && !form.address) {
+      return setError("Set your shop's location (or type a full address) so customers can find you");
+    }
     setError('');
     setBusy(true);
     try {
@@ -122,6 +146,8 @@ export default function ShopLoginScreen({ navigation }) {
         shopName: form.shopName,
         category: form.category,
         address: form.address,
+        lat: location?.lat,
+        lng: location?.lng,
       });
       Alert.alert(
         'Registration submitted',
@@ -233,6 +259,15 @@ export default function ShopLoginScreen({ navigation }) {
             ))}
           </View>
           <TextInput style={styles.input} placeholder="Shop address" value={form.address} onChangeText={(v) => upd('address', v)} />
+          <TouchableOpacity style={styles.locButton} onPress={useMyLocation} disabled={locating}>
+            {locating ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : (
+              <Text style={styles.locButtonText}>
+                {location ? '✓ Location set — tap to update' : "📍 Pin my shop's exact GPS location"}
+              </Text>
+            )}
+          </TouchableOpacity>
           <TouchableOpacity style={styles.button} onPress={doRegister} disabled={busy}>
             {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Register shop</Text>}
           </TouchableOpacity>
@@ -271,6 +306,8 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 13, color: colors.text, fontWeight: '600' },
   tabTextActive: { color: '#fff' },
   input: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, marginBottom: 10 },
+  locButton: { borderWidth: 1, borderColor: colors.primary, borderRadius: 8, padding: 12, alignItems: 'center', marginBottom: 10 },
+  locButtonText: { color: colors.primary, fontWeight: '600', fontSize: 13 },
   code: { fontSize: 22, letterSpacing: 6, textAlign: 'center' },
   button: { backgroundColor: colors.primary, borderRadius: 8, padding: 14, alignItems: 'center', marginTop: 6 },
   buttonText: { color: '#fff', fontWeight: '700' },
