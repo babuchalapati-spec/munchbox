@@ -100,6 +100,12 @@ export default function Login() {
         )}
 
         <Link className="link" to="/register">New here? Create an account</Link>
+
+        <div style={{borderTop: '1px solid #e6e0da', marginTop: 20, paddingTop: 14}}>
+          <p className="muted" style={{textAlign: 'center', marginBottom: 10}}>Not a customer?</p>
+          <Link to="/delivery-login" className="btn btn-outline" style={{display: 'block', textAlign: 'center', marginBottom: 10}}>🛵 I'm a delivery partner</Link>
+          <Link to="/shop-login" className="btn btn-outline" style={{display: 'block', textAlign: 'center'}}>🏪 I'm a shop owner</Link>
+        </div>
       </div>
     </div>
   );
