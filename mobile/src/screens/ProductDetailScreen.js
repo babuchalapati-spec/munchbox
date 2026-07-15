@@ -73,6 +73,14 @@ export default function ProductDetailScreen({ route, navigation }) {
   }
 
   function handleAddToCart() {
+    if (isCake && !flavor.trim()) {
+      Alert.alert('Flavour required', 'Please choose a flavour for this cake.');
+      return;
+    }
+    if (isCake && !messageOnCake.trim()) {
+      Alert.alert('Message required', 'Please enter what should be written on the cake (or type "None" if you don\'t want any message).');
+      return;
+    }
     const result = addItem(buildItem(), shop);
     if (result.conflict) {
       Alert.alert(
@@ -101,7 +109,7 @@ export default function ProductDetailScreen({ route, navigation }) {
       {product.imageUrl && !imageBroken ? (
         <Image source={{ uri: imageUri(product.imageUrl) }} style={styles.image} onError={() => setImageBroken(true)} />
       ) : null}
-      <Text style={styles.title}>{product.name}</Text>
+      <Text style={styles.title}>{!isCake ? (product.isVeg !== false ? '🟢 ' : '🔴 ') : ''}{product.name}</Text>
       <Text style={styles.description}>{product.description}</Text>
       {outOfStock && (
         <Text style={styles.outOfStockBanner}>⏸️ Currently out of stock at this shop</Text>
@@ -131,14 +139,14 @@ export default function ProductDetailScreen({ route, navigation }) {
       {isCake && (
         <>
           <View style={styles.section}>
-            <Text style={styles.label}>🎂 Flavour</Text>
+            <Text style={styles.label}>🎂 Flavour *</Text>
             <TextInput style={styles.input} placeholder="e.g. Chocolate, Vanilla, Butterscotch" value={flavor} onChangeText={setFlavor} />
           </View>
           <View style={styles.section}>
-            <Text style={styles.label}>✍️ Message on cake</Text>
+            <Text style={styles.label}>✍️ Message on cake *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Happy Birthday Ravi..."
+              placeholder="Happy Birthday Ravi... (type None if you don't want a message)"
               value={messageOnCake}
               onChangeText={setMessageOnCake}
             />

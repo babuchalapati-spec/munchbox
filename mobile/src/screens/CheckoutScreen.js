@@ -195,13 +195,13 @@ export default function CheckoutScreen({navigation}) {
     setSubmitting(true);
     try {
       if (paymentMethod === 'upi') {
-        await placeOrder({
+        const placed = await placeOrder({
           ...orderPayload,
           paymentMethod: 'upi',
           payment: {upiReference: upiReference.trim()},
         });
         clear();
-        navigation.reset({index: 0, routes: [{name: 'Orders'}]});
+        navigation.reset({index: 0, routes: [{name: 'Orders'}, {name: 'OrderTracking', params: {orderId: placed._id}}]});
         return;
       }
 
@@ -218,7 +218,7 @@ export default function CheckoutScreen({navigation}) {
           onSuccess: async (result) => {
             setSubmitting(true);
             try {
-              await placeOrder({
+              const placed = await placeOrder({
                 ...orderPayload,
                 paymentMethod: 'online',
                 payment: {
@@ -228,7 +228,7 @@ export default function CheckoutScreen({navigation}) {
                 },
               });
               clear();
-              navigation.reset({index: 0, routes: [{name: 'Orders'}]});
+              navigation.reset({index: 0, routes: [{name: 'Orders'}, {name: 'OrderTracking', params: {orderId: placed._id}}]});
             } catch (err) {
               setError(err.response?.data?.message || 'Payment succeeded but the order could not be placed. Please contact support — do not pay again.');
             } finally {
@@ -247,9 +247,9 @@ export default function CheckoutScreen({navigation}) {
         return;
       }
 
-      await placeOrder({...orderPayload, paymentMethod: 'COD'});
+      const placed = await placeOrder({...orderPayload, paymentMethod: 'COD'});
       clear();
-      navigation.reset({index: 0, routes: [{name: 'Orders'}]});
+      navigation.reset({index: 0, routes: [{name: 'Orders'}, {name: 'OrderTracking', params: {orderId: placed._id}}]});
     } catch (err) {
       setError(err.response?.data?.message || 'Could not place order');
     } finally {

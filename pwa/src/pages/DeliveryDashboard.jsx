@@ -166,6 +166,25 @@ export default function DeliveryDashboard() {
               )}
 
               {order.status === 'delivered' && <div style={{color: '#2e7d32', fontWeight: 700, marginTop: 8}}>✓ Delivered</div>}
+
+              <div style={{display: 'flex', gap: 8, marginTop: 8}}>
+                <button
+                  className="btn btn-outline"
+                  style={{width: 'auto', flex: '0 0 auto', padding: '6px 12px', fontSize: 13}}
+                  onClick={() => navigate(`/orders/${order._id}/chat?title=${encodeURIComponent(order.user?.name || 'Customer')}`)}
+                >
+                  💬 Chat with customer
+                </button>
+                {order.type !== 'courier' && (
+                  <button
+                    className="btn btn-outline"
+                    style={{width: 'auto', flex: '0 0 auto', padding: '6px 12px', fontSize: 13}}
+                    onClick={() => navigate(`/orders/${order._id}/chat?channel=pickup&title=${encodeURIComponent(order.shop?.name || 'Shop')}`)}
+                  >
+                    🏪 Chat with shop
+                  </button>
+                )}
+              </div>
             </div>
           ))
         )}

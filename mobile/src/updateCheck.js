@@ -4,7 +4,7 @@ import client from './api/client';
 
 // Bump this on every release; the backend advertises the latest build so the
 // app can prompt users to update automatically on launch.
-export const APP_VERSION_CODE = 15;
+export const APP_VERSION_CODE = 38;
 const UPDATE_POLL_INTERVAL_MS = 60000;
 const LAST_NOTIFIED_VERSION_KEY = '@munchbox:lastNotifiedVersion';
 

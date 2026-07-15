@@ -58,7 +58,7 @@ export default function ShopRegister() {
         setUploadingCert(true);
         const fd = new FormData();
         fd.append('image', certFile);
-        const {data: uploadData} = await client.post('/uploads', fd, {headers: {'Content-Type': 'multipart/form-data'}, timeout: 120000});
+        const {data: uploadData} = await client.post('/uploads/public', fd, {headers: {'Content-Type': 'multipart/form-data'}, timeout: 120000});
         fssaiCertificateUrl = uploadData.url;
         setUploadingCert(false);
       }

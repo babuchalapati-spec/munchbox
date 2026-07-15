@@ -24,7 +24,7 @@ async function getPaymentInfo(req, res) {
 
 async function updateSettings(req, res) {
   const settings = await Settings.getSingleton();
-  const { sms, app, partnerApp, payments, finance, maps } = req.body;
+  const { sms, app, partnerApp, shopApp, payments, finance, maps } = req.body;
 
   if (payments) {
     if (!settings.payments) settings.payments = {};
@@ -59,6 +59,15 @@ async function updateSettings(req, res) {
     if (partnerApp.mandatory !== undefined) settings.partnerApp.mandatory = partnerApp.mandatory === true || partnerApp.mandatory === 'true';
   }
 
+  if (shopApp) {
+    if (!settings.shopApp) settings.shopApp = {};
+    if (shopApp.latestVersionCode !== undefined) settings.shopApp.latestVersionCode = Number(shopApp.latestVersionCode);
+    if (shopApp.latestVersionName !== undefined) settings.shopApp.latestVersionName = shopApp.latestVersionName;
+    if (shopApp.apkUrl !== undefined) settings.shopApp.apkUrl = shopApp.apkUrl;
+    if (shopApp.updateMessage !== undefined) settings.shopApp.updateMessage = shopApp.updateMessage;
+    if (shopApp.mandatory !== undefined) settings.shopApp.mandatory = shopApp.mandatory === true || shopApp.mandatory === 'true';
+  }
+
   if (finance) {
     if (!settings.finance) settings.finance = {};
     if (finance.taxPercent !== undefined) settings.finance.taxPercent = Number(finance.taxPercent) || 0;
@@ -91,13 +100,13 @@ async function publishApk(req, res) {
   const downloadsDir = path.join(__dirname, '..', '..', 'downloads');
   if (!fs.existsSync(downloadsDir)) fs.mkdirSync(downloadsDir, { recursive: true });
 
-  const targetName = appType === 'partner' ? 'MunchboxPartner.apk' : 'Munchbox.apk';
+  const targetName = appType === 'partner' ? 'MunchboxPartner.apk' : appType === 'shop' ? 'MunchboxShop.apk' : 'Munchbox.apk';
   const targetPath = path.join(downloadsDir, targetName);
   fs.copyFileSync(req.file.path, targetPath);
   fs.unlinkSync(req.file.path);
 
   const settings = await Settings.getSingleton();
-  const targetApp = appType === 'partner' ? settings.partnerApp : settings.app;
+  const targetApp = appType === 'partner' ? settings.partnerApp : appType === 'shop' ? settings.shopApp : settings.app;
   if (targetApp) {
     const currentVersionCode = Number(targetApp.latestVersionCode || 1);
     const requestedVersionCode = Number(versionCode);

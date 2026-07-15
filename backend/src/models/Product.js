@@ -28,6 +28,9 @@ const productSchema = new mongoose.Schema(
     addOns: { type: [addOnSchema], default: [] },
     imageUrl: { type: String, default: '' },
     isCustomizable: { type: Boolean, default: false },
+    // Veg/non-veg tag — shown as a badge and used to filter restaurant/catering menus.
+    // Cakes/bakery items generally leave this at the default (veg).
+    isVeg: { type: Boolean, default: true },
     // New items stay hidden until an admin approves them.
     approved: { type: Boolean, default: false },
     // The shop's own in-stock switch — the only thing that decides if customers can order it.

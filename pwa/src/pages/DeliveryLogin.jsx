@@ -97,6 +97,7 @@ export default function DeliveryLogin() {
         )}
         <Link className="link" to="/delivery-register">New delivery partner? Register here</Link>
         <Link className="link" to="/login">← Back to customer login</Link>
+        <Link className="link" to="/download">⬇️ Download the app</Link>
       </div>
     </div>
   );

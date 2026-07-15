@@ -3,9 +3,15 @@ import { getSettings, publishApk, updateSettings } from '../../api/settings';
 
 export default function Settings() {
   const [sms, setSms] = useState({ provider: '', apiKey: '', apiSecret: '', senderId: '', enabled: false });
-  const [maps, setMaps] = useState({ googleMapsApiKey: '' });
   const [app, setApp] = useState({ latestVersionCode: 1, latestVersionName: '1.0', apkUrl: '', updateMessage: '', mandatory: false });
   const [partnerApp, setPartnerApp] = useState({
+    latestVersionCode: 1,
+    latestVersionName: '1.0',
+    apkUrl: '',
+    updateMessage: '',
+    mandatory: false,
+  });
+  const [shopApp, setShopApp] = useState({
     latestVersionCode: 1,
     latestVersionName: '1.0',
     apkUrl: '',
@@ -26,7 +32,7 @@ export default function Settings() {
         setSms((prev) => ({ ...prev, ...(s.sms || {}) }));
         setApp((prev) => ({ ...prev, ...(s.app || {}) }));
         setPartnerApp((prev) => ({ ...prev, ...(s.partnerApp || {}) }));
-        setMaps((prev) => ({ ...prev, ...(s.maps || {}) }));
+        setShopApp((prev) => ({ ...prev, ...(s.shopApp || {}) }));
       })
       .catch(() => setError('Could not load settings'))
       .finally(() => setLoading(false));
@@ -47,8 +53,8 @@ export default function Settings() {
     setSaved(false);
   }
 
-  function changeMaps(field, value) {
-    setMaps((m) => ({ ...m, [field]: value }));
+  function changeShopApp(field, value) {
+    setShopApp((a) => ({ ...a, [field]: value }));
     setSaved(false);
   }
 
@@ -56,11 +62,11 @@ export default function Settings() {
     e.preventDefault();
     setError('');
     try {
-      const updated = await updateSettings({ sms, app, partnerApp, maps });
+      const updated = await updateSettings({ sms, app, partnerApp, shopApp });
       setSms(updated.sms);
       setApp(updated.app);
       setPartnerApp(updated.partnerApp);
-      setMaps(updated.maps || { googleMapsApiKey: '' });
+      setShopApp(updated.shopApp);
       setSaved(true);
     } catch (err) {
       setError(err.response?.data?.message || 'Save failed');
@@ -80,13 +86,16 @@ export default function Settings() {
       const formData = new FormData();
       formData.append('apk', apkFile);
       formData.append('appType', apkType);
-      formData.append('versionCode', apkType === 'partner' ? partnerApp.latestVersionCode : app.latestVersionCode);
-      formData.append('versionName', apkType === 'partner' ? partnerApp.latestVersionName : app.latestVersionName);
-      formData.append('updateMessage', apkType === 'partner' ? partnerApp.updateMessage : app.updateMessage);
-      formData.append('mandatory', apkType === 'partner' ? String(partnerApp.mandatory) : String(app.mandatory));
+      const target = apkType === 'partner' ? partnerApp : apkType === 'shop' ? shopApp : app;
+      formData.append('versionCode', target.latestVersionCode);
+      formData.append('versionName', target.latestVersionName);
+      formData.append('updateMessage', target.updateMessage);
+      formData.append('mandatory', String(target.mandatory));
       const result = await publishApk(formData);
       if (apkType === 'partner') {
         setPartnerApp((prev) => ({ ...prev, apkUrl: result.apkUrl, latestVersionCode: Number(partnerApp.latestVersionCode || 1), latestVersionName: partnerApp.latestVersionName || '1.0' }));
+      } else if (apkType === 'shop') {
+        setShopApp((prev) => ({ ...prev, apkUrl: result.apkUrl, latestVersionCode: Number(shopApp.latestVersionCode || 1), latestVersionName: shopApp.latestVersionName || '1.0' }));
       } else {
         setApp((prev) => ({ ...prev, apkUrl: result.apkUrl, latestVersionCode: Number(app.latestVersionCode || 1), latestVersionName: app.latestVersionName || '1.0' }));
       }
@@ -140,20 +149,6 @@ export default function Settings() {
         <label>
           Sender ID
           <input value={sms.senderId} onChange={(e) => change('senderId', e.target.value)} placeholder="e.g. MUNCHB" />
-        </label>
-
-        <h2 style={{ marginTop: 24 }}>Google Maps (admin live map)</h2>
-        <p className="muted">
-          Used only by Admin → Live map to show shops, delivery partners and customers on one map. Get a key from{' '}
-          <a href="https://console.cloud.google.com/google/maps-apis" target="_blank" rel="noopener noreferrer">
-            Google Cloud Console
-          </a>{' '}
-          (enable "Maps JavaScript API") and restrict it to this site's domain. The mobile apps don't need this — they
-          use OpenStreetMap already.
-        </p>
-        <label>
-          Google Maps API key
-          <input value={maps.googleMapsApiKey} onChange={(e) => changeMaps('googleMapsApiKey', e.target.value)} placeholder="AIza..." />
         </label>
 
         <h2 style={{ marginTop: 24 }}>App auto-update</h2>
@@ -218,6 +213,48 @@ export default function Settings() {
           Force partner update
         </label>
 
+        <h2 style={{ marginTop: 24 }}>Shop app auto-update</h2>
+        <p className="muted">
+          Same app as Customer/Partner, published under its own branded download link for shop owners.
+          Shop builds check /api/app/version?type=shop.
+        </p>
+        <label>
+          Latest version code
+          <input
+            type="number"
+            value={shopApp.latestVersionCode}
+            onChange={(e) => changeShopApp('latestVersionCode', e.target.value)}
+          />
+        </label>
+        <label>
+          Version name
+          <input
+            value={shopApp.latestVersionName}
+            onChange={(e) => changeShopApp('latestVersionName', e.target.value)}
+            placeholder="1.1"
+          />
+        </label>
+        <label>
+          Shop APK download URL
+          <input
+            value={shopApp.apkUrl}
+            onChange={(e) => changeShopApp('apkUrl', e.target.value)}
+            placeholder="http://<server>:5001/downloads/MunchboxShop.apk"
+          />
+        </label>
+        <label>
+          Update message
+          <input value={shopApp.updateMessage} onChange={(e) => changeShopApp('updateMessage', e.target.value)} />
+        </label>
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={shopApp.mandatory}
+            onChange={(e) => changeShopApp('mandatory', e.target.checked)}
+          />
+          Force shop update
+        </label>
+
         <div className="form-actions">
           <button type="submit">Save settings</button>
         </div>
@@ -233,6 +270,7 @@ export default function Settings() {
           App target
           <select value={apkType} onChange={(e) => setApkType(e.target.value)}>
             <option value="customer">Customer app</option>
+            <option value="shop">Shop app</option>
             <option value="partner">Partner app</option>
           </select>
         </label>

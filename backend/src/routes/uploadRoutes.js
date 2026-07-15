@@ -4,7 +4,7 @@ const upload = require('../middleware/upload');
 
 const router = express.Router();
 
-router.post('/', protect, (req, res) => {
+function handleUpload(req, res) {
   upload.fields([{ name: 'image', maxCount: 1 }, { name: 'file', maxCount: 1 }])(req, res, (err) => {
     if (err) {
       return res.status(400).json({ message: err.message || 'File upload failed' });
@@ -17,6 +17,13 @@ router.post('/', protect, (req, res) => {
 
     res.status(201).json({ url: `/uploads/${uploaded.filename}` });
   });
-});
+}
+
+router.post('/', protect, handleUpload);
+
+// Unauthenticated: only for documents attached to a registration form BEFORE the
+// account (and therefore a login token) exists — e.g. a shop's FSSAI certificate
+// during shop signup. Same file-type/size restrictions as the authenticated route.
+router.post('/public', handleUpload);
 
 module.exports = router;

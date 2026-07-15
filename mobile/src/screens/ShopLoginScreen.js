@@ -13,7 +13,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { useAuth } from '../context/AuthContext';
 import { shopRegister, requestOtp } from '../api/auth';
-import { uploadImage } from '../api/upload';
+import { uploadImagePublic } from '../api/upload';
 import { requestLocationPermission, getCurrentPosition } from '../location';
 import { colors, brandGradient } from '../theme';
 
@@ -53,7 +53,7 @@ export default function ShopLoginScreen({ navigation }) {
     if (res.didCancel || !res.assets?.[0]) return;
     setCertFile({ uri: res.assets[0].uri, uploading: true });
     try {
-      const url = await uploadImage(res.assets[0]);
+      const url = await uploadImagePublic(res.assets[0]);
       setCertFile({ uri: res.assets[0].uri, url });
     } catch (err) {
       setCertFile(null);

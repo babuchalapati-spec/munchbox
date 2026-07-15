@@ -25,3 +25,24 @@ export async function uploadImage(asset) {
   });
   return data.url;
 }
+
+// Same as uploadImage, but for documents attached to a registration form before an
+// account (and login token) exists — e.g. a shop's FSSAI certificate during signup.
+export async function uploadImagePublic(asset) {
+  const form = new FormData();
+  const fileName = asset.fileName || asset.uri?.split('/').pop() || `photo-${Date.now()}.jpg`;
+  const ext = fileName.split('.').pop()?.toLowerCase() || 'jpg';
+  const mimeType = asset.type || (ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : ext === 'pdf' ? 'application/pdf' : 'image/jpeg');
+
+  form.append('image', {
+    uri: normalizeUri(asset.uri),
+    name: fileName,
+    type: mimeType,
+  });
+
+  const { data } = await client.post('/uploads/public', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 120000,
+  });
+  return data.url;
+}

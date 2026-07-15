@@ -22,6 +22,7 @@ export default function ProductDetail() {
   const [notes, setNotes] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [conflict, setConflict] = useState(null);
+  const [validationError, setValidationError] = useState('');
 
   useEffect(() => {
     client.get(`/products/${id}`).then(({data}) => {
@@ -52,6 +53,15 @@ export default function ProductDetail() {
   }
 
   function handleAdd() {
+    if (kind === 'cake' && !flavor.trim()) {
+      setValidationError('Please choose a flavour for this cake.');
+      return;
+    }
+    if (kind === 'cake' && !messageOnCake.trim()) {
+      setValidationError('Please enter what should be written on the cake (or type "None").');
+      return;
+    }
+    setValidationError('');
     const result = addItem(buildItem(), shop);
     if (result.conflict) {
       setConflict(result);
@@ -70,7 +80,7 @@ export default function ProductDetail() {
     <div className="screen">
       <div className="top-bar">
         <button className="back-btn" onClick={() => navigate(-1)}>←</button>
-        <h2>{product.name}</h2>
+        <h2>{kind !== 'cake' ? (product.isVeg !== false ? '🟢 ' : '🔴 ') : ''}{product.name}</h2>
       </div>
       <div className="page-pad" style={{flex: 1, paddingBottom: 90}}>
         {product.imageUrl && <img src={imageUri(product.imageUrl)} alt="" onError={(e) => { e.target.style.display = 'none'; }} style={{width: '100%', height: 200, objectFit: 'cover', borderRadius: 10, marginBottom: 16}} />}
@@ -92,12 +102,13 @@ export default function ProductDetail() {
 
         {kind === 'cake' && (
           <>
-            <label className="label">Flavor</label>
+            <label className="label">Flavor *</label>
             <input className="input" value={flavor} onChange={(e) => setFlavor(e.target.value)} placeholder="e.g. Chocolate, Vanilla" />
-            <label className="label">Message on cake</label>
-            <input className="input" value={messageOnCake} onChange={(e) => setMessageOnCake(e.target.value)} placeholder="e.g. Happy Birthday!" />
+            <label className="label">Message on cake *</label>
+            <input className="input" value={messageOnCake} onChange={(e) => setMessageOnCake(e.target.value)} placeholder="e.g. Happy Birthday! (type None if no message)" />
           </>
         )}
+        {validationError && <p className="error">{validationError}</p>}
 
         <label className="label">Notes (optional)</label>
         <textarea className="input" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />

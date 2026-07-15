@@ -33,6 +33,13 @@ const settingsSchema = new mongoose.Schema(
       updateMessage: { type: String, default: 'A new version of Munchbox Partner is available.' },
       mandatory: { type: Boolean, default: false },
     },
+    shopApp: {
+      latestVersionCode: { type: Number, default: 1 },
+      latestVersionName: { type: String, default: '1.0' },
+      apkUrl: { type: String, default: '' },
+      updateMessage: { type: String, default: 'A new version of Munchbox Shop is available.' },
+      mandatory: { type: Boolean, default: false },
+    },
     // Tax rate applied to platform commission revenue in the P&L overview.
     finance: {
       taxPercent: { type: Number, default: 0 },

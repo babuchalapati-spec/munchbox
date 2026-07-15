@@ -17,7 +17,9 @@ import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import Orders from './pages/Orders';
 import OrderTracking from './pages/OrderTracking';
+import Chat from './pages/Chat';
 import Account from './pages/Account';
+import Download from './pages/Download';
 import PaymentHistory from './pages/PaymentHistory';
 
 function Protected({children}) {
@@ -47,6 +49,7 @@ function Routed() {
   if (loading) return <div className="screen page-pad">Loading…</div>;
   return (
     <Routes>
+      <Route path="/download" element={<Download />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -61,6 +64,7 @@ function Routed() {
       <Route path="/checkout" element={<Protected><CustomerOnly><Checkout /></CustomerOnly></Protected>} />
       <Route path="/orders" element={<Protected><CustomerOnly><Orders /></CustomerOnly></Protected>} />
       <Route path="/orders/:id" element={<Protected><OrderTracking /></Protected>} />
+      <Route path="/orders/:id/chat" element={<Protected><Chat /></Protected>} />
       <Route path="/account" element={<Protected><CustomerOnly><Account /></CustomerOnly></Protected>} />
       <Route path="/payment-history" element={<Protected><CustomerOnly><PaymentHistory /></CustomerOnly></Protected>} />
       <Route path="*" element={<Navigate to="/" replace />} />

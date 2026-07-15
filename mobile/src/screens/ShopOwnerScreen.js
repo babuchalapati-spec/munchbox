@@ -39,7 +39,7 @@ export default function ShopOwnerScreen({ navigation }) {
   const [ledger, setLedger] = useState({ entries: [], balance: 0 });
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
-  const [newItem, setNewItem] = useState({ name: '', category: 'Cake', basePrice: '', addOns: '', image: null, imageLink: '' });
+  const [newItem, setNewItem] = useState({ name: '', category: 'Cake', basePrice: '', addOns: '', image: null, imageLink: '', isVeg: true });
   const [adding, setAdding] = useState(false);
   const [topUp, setTopUp] = useState({ amount: '', reference: '', open: false, busy: false });
   const [editingItemId, setEditingItemId] = useState(null);
@@ -118,6 +118,7 @@ export default function ShopOwnerScreen({ navigation }) {
         available: true,
         imageUrl: link || newItem.image?.url || '',
         addOns,
+        isVeg: newItem.category === 'Cake' ? true : newItem.isVeg,
       });
       saved = true;
       if (created?._id) {
@@ -139,7 +140,7 @@ export default function ShopOwnerScreen({ navigation }) {
     // Only after a confirmed save: clear the form and refresh. A refresh problem must
     // never be reported as "could not add item" — the item is already saved.
     if (saved) {
-      setNewItem({ name: '', category: 'Cake', basePrice: '', addOns: '', image: null, imageLink: '' });
+      setNewItem({ name: '', category: 'Cake', basePrice: '', addOns: '', image: null, imageLink: '', isVeg: true });
       try {
         await load();
       } catch (err) {
@@ -254,7 +255,7 @@ export default function ShopOwnerScreen({ navigation }) {
 
   function startEditItem(item) {
     setEditingItemId(item._id);
-    setEditDraft({ name: item.name, basePrice: String(item.basePrice) });
+    setEditDraft({ name: item.name, basePrice: String(item.basePrice), isVeg: item.isVeg !== false });
     setEditImage(null);
   }
 
@@ -286,7 +287,7 @@ export default function ShopOwnerScreen({ navigation }) {
     }
     setBusyId(itemId);
     try {
-      const payload = { name: editDraft.name.trim(), basePrice: Number(editDraft.basePrice) };
+      const payload = { name: editDraft.name.trim(), basePrice: Number(editDraft.basePrice), isVeg: editDraft.isVeg };
       if (editImage?.url) payload.imageUrl = editImage.url;
       await updateProduct(itemId, payload);
       const refreshed = await listProducts(shopId);
@@ -442,6 +443,22 @@ export default function ShopOwnerScreen({ navigation }) {
               ))}
             </View>
           </View>
+          {newItem.category !== 'Cake' && (
+            <View style={styles.addRow}>
+              <TouchableOpacity
+                style={[styles.catChip, newItem.isVeg && { backgroundColor: '#2e7d32', borderColor: '#2e7d32' }]}
+                onPress={() => setNewItem((s) => ({ ...s, isVeg: true }))}
+              >
+                <Text style={[styles.catChipText, newItem.isVeg && styles.catChipTextActive]}>🟢 Veg</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.catChip, !newItem.isVeg && { backgroundColor: '#c62828', borderColor: '#c62828' }]}
+                onPress={() => setNewItem((s) => ({ ...s, isVeg: false }))}
+              >
+                <Text style={[styles.catChipText, !newItem.isVeg && styles.catChipTextActive]}>🔴 Non-veg</Text>
+              </TouchableOpacity>
+            </View>
+          )}
           <TextInput
             style={styles.addInput}
             placeholder="Or paste a direct image URL (ends in .jpg/.png, not a webpage)"
@@ -484,6 +501,22 @@ export default function ShopOwnerScreen({ navigation }) {
                 )}
                 {editImage?.uploading ? <ActivityIndicator style={styles.photoLoad} color={colors.primary} /> : null}
               </TouchableOpacity>
+              {p.category !== 'Cake' && (
+                <View style={styles.addRow}>
+                  <TouchableOpacity
+                    style={[styles.catChip, editDraft.isVeg && { backgroundColor: '#2e7d32', borderColor: '#2e7d32' }]}
+                    onPress={() => setEditDraft((d) => ({ ...d, isVeg: true }))}
+                  >
+                    <Text style={[styles.catChipText, editDraft.isVeg && styles.catChipTextActive]}>🟢 Veg</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.catChip, !editDraft.isVeg && { backgroundColor: '#c62828', borderColor: '#c62828' }]}
+                    onPress={() => setEditDraft((d) => ({ ...d, isVeg: false }))}
+                  >
+                    <Text style={[styles.catChipText, !editDraft.isVeg && styles.catChipTextActive]}>🔴 Non-veg</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
               <View style={styles.addRow}>
                 <TouchableOpacity style={[styles.assignBtn, { flex: 1 }]} onPress={() => setEditingItemId(null)}>
                   <Text style={styles.assignBtnText}>Cancel</Text>
@@ -501,7 +534,7 @@ export default function ShopOwnerScreen({ navigation }) {
                 <View style={[styles.itemThumb, styles.itemThumbEmpty]}><Text style={styles.itemThumbIcon}>🍽️</Text></View>
               )}
               <View style={{ flex: 1 }}>
-                <Text style={styles.itemName}>{p.name}</Text>
+                <Text style={styles.itemName}>{p.category !== 'Cake' ? (p.isVeg !== false ? '🟢 ' : '🔴 ') : ''}{p.name}</Text>
                 <Text style={styles.itemMeta}>{p.category} · ₹{p.basePrice}{p.available ? '' : ' · out of stock'}</Text>
                 {p.available ? null : (
                   <Text style={styles.pendingTag}>⏸️ Hidden from customers — turn it on to show it again</Text>
@@ -577,6 +610,16 @@ export default function ShopOwnerScreen({ navigation }) {
             >
               <Text style={styles.msgBtnText}>💬 Message customer</Text>
             </TouchableOpacity>
+
+            {/* Message the assigned delivery partner (e.g. confirm identity before handoff) */}
+            {order.assignedTo && (
+              <TouchableOpacity
+                style={styles.msgBtn}
+                onPress={() => navigation.navigate('Chat', { orderId: order._id, channel: 'pickup', title: order.assignedTo?.name || 'Delivery partner' })}
+              >
+                <Text style={styles.msgBtnText}>🛵 Message {order.assignedTo?.name || 'delivery partner'}</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )) : <Text style={styles.muted}>No orders yet.</Text>}
       </View>

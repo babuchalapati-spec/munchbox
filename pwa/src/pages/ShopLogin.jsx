@@ -46,6 +46,7 @@ export default function ShopLogin() {
         </form>
         <Link className="link" to="/shop-register">New shop? Register here</Link>
         <Link className="link" to="/login">← Back to customer login</Link>
+        <Link className="link" to="/download">⬇️ Download the app</Link>
       </div>
     </div>
   );

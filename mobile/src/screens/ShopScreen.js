@@ -22,6 +22,7 @@ export default function ShopScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeCategory, setActiveCategory] = useState('All');
+  const [vegFilter, setVegFilter] = useState('all');
   // Tracks items whose photo URL failed to load (broken link, bad paste), so we fall
   // back to the placeholder icon instead of a broken-image box.
   const [brokenImages, setBrokenImages] = useState(() => new Set());
@@ -47,10 +48,15 @@ export default function ShopScreen({ route, navigation }) {
     return ['All', ...set];
   }, [products]);
 
-  const visibleProducts = useMemo(
-    () => (activeCategory === 'All' ? products : products.filter((p) => p.category === activeCategory)),
-    [products, activeCategory]
-  );
+  const hasVegNonVeg = useMemo(() => products.some((p) => p.category !== 'Cake'), [products]);
+
+  const visibleProducts = useMemo(() => {
+    let list = activeCategory === 'All' ? products : products.filter((p) => p.category === activeCategory);
+    if (vegFilter !== 'all') {
+      list = list.filter((p) => p.category === 'Cake' || (vegFilter === 'veg' ? p.isVeg !== false : p.isVeg === false));
+    }
+    return list;
+  }, [products, activeCategory, vegFilter]);
 
   if (loading) {
     return (
@@ -101,6 +107,30 @@ export default function ShopScreen({ route, navigation }) {
         />
       )}
 
+      {hasVegNonVeg && (
+        <View style={styles.vegRow}>
+          {[
+            { key: 'all', label: 'All' },
+            { key: 'veg', label: '🟢 Veg' },
+            { key: 'nonveg', label: '🔴 Non-veg' },
+          ].map((v) => (
+            <TouchableOpacity
+              key={v.key}
+              style={[
+                styles.vegChip,
+                vegFilter === v.key && {
+                  backgroundColor: v.key === 'nonveg' ? '#c62828' : v.key === 'veg' ? '#2e7d32' : theme.primary,
+                  borderColor: v.key === 'nonveg' ? '#c62828' : v.key === 'veg' ? '#2e7d32' : theme.primary,
+                },
+              ]}
+              onPress={() => setVegFilter(v.key)}
+            >
+              <Text style={[styles.chipText, vegFilter === v.key && styles.chipTextActive]}>{v.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+
       <FlatList
         data={visibleProducts}
         keyExtractor={(p) => p._id}
@@ -114,7 +144,7 @@ export default function ShopScreen({ route, navigation }) {
             activeOpacity={0.85}
           >
             <View style={styles.cardBody}>
-              <Text style={styles.cardTitle}>{item.name}</Text>
+              <Text style={styles.cardTitle}>{item.category !== 'Cake' ? (item.isVeg !== false ? '🟢 ' : '🔴 ') : ''}{item.name}</Text>
               <Text style={styles.cardMeta}>{item.category}</Text>
               {item.description ? (
                 <Text style={styles.cardDesc} numberOfLines={2}>
@@ -171,6 +201,15 @@ const styles = StyleSheet.create({
   deliveryNote: { fontSize: 12, color: colors.muted },
   cartLink: { color: colors.primary, fontSize: 13, fontWeight: '600' },
   chipRow: { paddingHorizontal: 16, paddingVertical: 10, gap: 8, backgroundColor: colors.card },
+  vegRow: { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 10, gap: 8, backgroundColor: colors.card },
+  vegChip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    backgroundColor: colors.card,
+  },
   chip: {
     borderWidth: 1,
     borderColor: colors.border,

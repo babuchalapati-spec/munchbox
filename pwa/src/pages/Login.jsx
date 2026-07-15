@@ -106,6 +106,8 @@ export default function Login() {
           <Link to="/delivery-login" className="btn btn-outline" style={{display: 'block', textAlign: 'center', marginBottom: 10}}>🛵 I'm a delivery partner</Link>
           <Link to="/shop-login" className="btn btn-outline" style={{display: 'block', textAlign: 'center'}}>🏪 I'm a shop owner</Link>
         </div>
+
+        <Link className="link" to="/download" style={{display: 'block', textAlign: 'center', marginTop: 14}}>⬇️ Download the app</Link>
       </div>
     </div>
   );

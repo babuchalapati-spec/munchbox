@@ -63,6 +63,16 @@ export default function OrderTracking() {
           </div>
         )}
 
+        {order.assignedTo && order.status !== 'cancelled' && (
+          <button
+            className="btn btn-outline"
+            style={{marginBottom: 12}}
+            onClick={() => navigate(`/orders/${order._id}/chat?title=${encodeURIComponent(order.assignedTo.name)}`)}
+          >
+            💬 Chat with {order.assignedTo.name}
+          </button>
+        )}
+
         {order.status === 'out_for_delivery' && order.deliveryCode && (
           <div className="card" style={{background: '#c2185b', color: '#fff', textAlign: 'center'}}>
             <div style={{fontSize: 12}}>Your delivery code</div>

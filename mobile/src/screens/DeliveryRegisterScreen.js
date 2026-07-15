@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Image, Alert } from 'react-native';
 import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
-import { requestOtp, submitKyc } from '../api/auth';
+import { requestOtp, submitKyc, deliveryRegister } from '../api/auth';
 import { uploadImage } from '../api/upload';
 import { colors } from '../theme';
 
@@ -15,8 +16,8 @@ const DOCS = [
 
 // OTP-first delivery partner entry: phone -> OTP -> log in if registered, else register + KYC.
 export default function DeliveryRegisterScreen({ navigation }) {
-  const { loginWithOtp, registerDelivery, refreshUser } = useAuth();
-  const [step, setStep] = useState('phone'); // 'phone' | 'otp' | 'details'
+  const { loginWithOtp, refreshUser } = useAuth();
+  const [step, setStep] = useState('phone'); // 'phone' | 'otp' | 'profile' | 'docs'
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [form, setForm] = useState({ name: '', vehicleNumber: '' });
@@ -49,7 +50,7 @@ export default function DeliveryRegisterScreen({ navigation }) {
     try {
       const result = await loginWithOtp(phone, code, undefined, 'delivery');
       if (result.user) return; // existing partner logged in; navigator switches
-      setStep('details'); // new partner: collect registration + documents
+      setStep('profile'); // new partner: collect registration + documents
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid OTP');
     } finally {
@@ -90,14 +91,32 @@ export default function DeliveryRegisterScreen({ navigation }) {
     }
   }
 
-  async function completeRegistration() {
+  // Creates the account FIRST so a token exists before touching /uploads (which
+  // requires login) — uploading documents before the account existed was why
+  // Aadhaar/PAN/license uploads silently failed for new partners. Stores the token
+  // directly (not via context) so the navigator doesn't switch away mid-registration,
+  // before documents are submitted.
+  async function createAccount() {
     if (!form.name) return setError('Enter your name');
+    setError('');
+    setBusy(true);
+    try {
+      const { token } = await deliveryRegister({ name: form.name, phone, vehicleNumber: form.vehicleNumber });
+      await AsyncStorage.setItem('cake_token', token);
+      setStep('docs');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Registration failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitDocs() {
     const missing = DOCS.filter((d) => !docs[d.key]?.url);
     if (missing.length) return setError(`Please add: ${missing.map((m) => m.label).join(', ')}`);
     setError('');
     setBusy(true);
     try {
-      await registerDelivery({ name: form.name, phone, vehicleNumber: form.vehicleNumber });
       const updated = await submitKyc({
         photoUrl: docs.photoUrl.url,
         aadhaarUrl: docs.aadhaarUrl.url,
@@ -107,7 +126,7 @@ export default function DeliveryRegisterScreen({ navigation }) {
       });
       refreshUser(updated);
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed');
+      setError(err.response?.data?.message || 'Could not submit documents');
     } finally {
       setBusy(false);
     }
@@ -141,11 +160,20 @@ export default function DeliveryRegisterScreen({ navigation }) {
         </>
       )}
 
-      {step === 'details' && (
+      {step === 'profile' && (
         <>
-          <Text style={styles.sub}>New partner — complete your registration and upload documents. Admin will verify.</Text>
+          <Text style={styles.sub}>New partner — let's set up your account first, then add your documents.</Text>
           <TextInput style={styles.input} placeholder="Full name" value={form.name} onChangeText={(v) => update('name', v)} />
           <TextInput style={styles.input} placeholder="Bike number (e.g. TS09AB1234)" value={form.vehicleNumber} onChangeText={(v) => update('vehicleNumber', v)} />
+          <TouchableOpacity style={styles.button} onPress={createAccount} disabled={busy}>
+            {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Continue</Text>}
+          </TouchableOpacity>
+        </>
+      )}
+
+      {step === 'docs' && (
+        <>
+          <Text style={styles.sub}>Almost done — upload your documents. Admin will verify.</Text>
           <Text style={styles.section}>Documents</Text>
           {DOCS.map((d) => {
             const doc = docs[d.key];
@@ -165,8 +193,8 @@ export default function DeliveryRegisterScreen({ navigation }) {
               </TouchableOpacity>
             );
           })}
-          <TouchableOpacity style={styles.button} onPress={completeRegistration} disabled={busy}>
-            {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Submit registration</Text>}
+          <TouchableOpacity style={styles.button} onPress={submitDocs} disabled={busy}>
+            {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Submit documents</Text>}
           </TouchableOpacity>
         </>
       )}

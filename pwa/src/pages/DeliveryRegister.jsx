@@ -13,7 +13,7 @@ const DOCS = [
 export default function DeliveryRegister() {
   const {loginWithOtp, requestOtp} = useAuth();
   const navigate = useNavigate();
-  const [step, setStep] = useState('phone'); // 'phone' | 'otp' | 'details'
+  const [step, setStep] = useState('phone'); // 'phone' | 'otp' | 'profile' | 'docs'
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
@@ -48,7 +48,7 @@ export default function DeliveryRegister() {
         navigate('/');
         return;
       }
-      setStep('details'); // new partner
+      setStep('profile'); // new partner
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid OTP');
     } finally {
@@ -70,16 +70,32 @@ export default function DeliveryRegister() {
     }
   }
 
-  async function completeRegistration(e) {
+  // Creates the account FIRST so we hold an auth token before touching /uploads
+  // (which requires login) — uploading documents before the account existed was
+  // why Aadhaar/PAN/license uploads silently failed for new partners.
+  async function createAccount(e) {
     e.preventDefault();
     if (!name) return setError('Enter your name');
-    const missing = DOCS.filter((d) => !docs[d.key]?.url);
-    if (missing.length) return setError(`Please add: ${missing.map((m) => m.label).join(', ')}`);
     setError('');
     setBusy(true);
     try {
       const {data} = await client.post('/auth/delivery-register', {name, phone, vehicleNumber});
       localStorage.setItem('mb_token', data.token);
+      setStep('docs');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Registration failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitDocs(e) {
+    e.preventDefault();
+    const missing = DOCS.filter((d) => !docs[d.key]?.url);
+    if (missing.length) return setError(`Please add: ${missing.map((m) => m.label).join(', ')}`);
+    setError('');
+    setBusy(true);
+    try {
       await client.put('/auth/kyc', {
         photoUrl: docs.photoUrl.url,
         aadhaarUrl: docs.aadhaarUrl.url,
@@ -89,7 +105,7 @@ export default function DeliveryRegister() {
       });
       window.location.href = '/'; // full reload so AuthContext picks up the new session
     } catch (err) {
-      setError(err.response?.data?.message || 'Registration failed');
+      setError(err.response?.data?.message || 'Could not submit documents');
     } finally {
       setBusy(false);
     }
@@ -122,22 +138,27 @@ export default function DeliveryRegister() {
           </form>
         )}
 
-        {step === 'details' && (
-          <form onSubmit={completeRegistration}>
-            <p className="muted">New partner — complete your registration and upload documents. Admin will verify.</p>
+        {step === 'profile' && (
+          <form onSubmit={createAccount}>
+            <p className="muted">New partner — let's set up your account first, then add your documents.</p>
             <label className="label">Full name</label>
             <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
             <label className="label">Bike number</label>
             <input className="input" value={vehicleNumber} onChange={(e) => setVehicleNumber(e.target.value)} placeholder="e.g. TS09AB1234" />
+            <button className="btn" disabled={busy}>{busy ? 'Creating account…' : 'Continue'}</button>
+          </form>
+        )}
 
-            <p style={{fontWeight: 700, marginTop: 10, marginBottom: 8}}>Documents</p>
+        {step === 'docs' && (
+          <form onSubmit={submitDocs}>
+            <p className="muted">Almost done — upload your documents. Admin will verify.</p>
             {DOCS.map((d) => (
               <div key={d.key} style={{marginBottom: 12}}>
                 <label className="label">{d.label}{docs[d.key]?.url ? ' — ✓ Added' : docs[d.key]?.uploading ? ' — Uploading…' : ''}</label>
                 <input type="file" accept="image/*,.pdf" onChange={(e) => uploadDoc(d.key, e.target.files[0])} />
               </div>
             ))}
-            <button className="btn" disabled={busy}>{busy ? 'Submitting…' : 'Submit registration'}</button>
+            <button className="btn" disabled={busy}>{busy ? 'Submitting…' : 'Submit documents'}</button>
           </form>
         )}
 

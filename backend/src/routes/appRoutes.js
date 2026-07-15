@@ -19,10 +19,6 @@ function withDefaultApkUrl(req, appSettings, fileName) {
   return app;
 }
 
-function toPlainApp(appSettings) {
-  return appSettings?.toObject ? appSettings.toObject() : { ...(appSettings || {}) };
-}
-
 // Public: the app calls this on launch to see if a newer build is available.
 router.get(
   '/version',
@@ -30,8 +26,13 @@ router.get(
     const settings = await Settings.getSingleton();
     const type = String(req.query.type || req.query.app || 'customer').toLowerCase();
     const isPartner = ['partner', 'delivery', 'delivery-partner'].includes(type);
-    const app = isPartner ? toPlainApp(settings.partnerApp) : withDefaultApkUrl(req, settings.app, 'Munchbox.apk');
-    res.json({ app, type: isPartner ? 'partner' : 'customer' });
+    const isShop = ['shop', 'shop-owner'].includes(type);
+    const app = isPartner
+      ? withDefaultApkUrl(req, settings.partnerApp, 'MunchboxPartner.apk')
+      : isShop
+        ? withDefaultApkUrl(req, settings.shopApp, 'MunchboxShop.apk')
+        : withDefaultApkUrl(req, settings.app, 'Munchbox.apk');
+    res.json({ app, type: isPartner ? 'partner' : isShop ? 'shop' : 'customer' });
   })
 );
 

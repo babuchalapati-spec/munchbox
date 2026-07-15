@@ -11,6 +11,55 @@ const NEXT_STATUS = {
 
 const CATEGORIES = ['Cake', 'Food', 'Catering'];
 
+function osmEmbedUrl(lat, lng) {
+  const d = 0.008;
+  const bbox = `${lng - d},${lat - d},${lng + d},${lat + d}`;
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lng}`;
+}
+
+// Live map of the assigned delivery partner's position, polled every 10s —
+// shown while they're heading to the shop or out for delivery.
+function DeliveryTrackingMap({orderId}) {
+  const [location, setLocation] = useState(null);
+  const [eta, setEta] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function poll() {
+      try {
+        const [orderRes, etaRes] = await Promise.all([
+          client.get(`/orders/${orderId}`),
+          client.get(`/orders/${orderId}/eta`),
+        ]);
+        if (cancelled) return;
+        setLocation(orderRes.data.order.currentLocation || null);
+        setEta(etaRes.data.eta);
+      } catch (err) {
+        // ignore — retried next tick
+      }
+    }
+    poll();
+    const iv = setInterval(poll, 10000);
+    return () => {
+      cancelled = true;
+      clearInterval(iv);
+    };
+  }, [orderId]);
+
+  if (!location) return <p className="muted" style={{fontSize: 12, marginTop: 8}}>Waiting for the delivery partner's location...</p>;
+
+  return (
+    <div style={{marginTop: 8}}>
+      <div style={{width: '100%', height: 160, borderRadius: 10, overflow: 'hidden', background: '#e6e0da'}}>
+        <iframe title="delivery location" width="100%" height="160" style={{border: 0}} src={osmEmbedUrl(location.lat, location.lng)} />
+      </div>
+      <p style={{fontSize: 12, fontWeight: 600, marginTop: 6}}>
+        {eta ? `📍 ${eta.distanceKm} km away · ETA ~${eta.etaMinutes} min${eta.estimated ? ' (estimated)' : ''}` : 'Calculating ETA...'}
+      </p>
+    </div>
+  );
+}
+
 // Parses "Extra cheese +40, Olives +20" into [{name, price}], matching the mobile app.
 function parseAddOns(text) {
   return text
@@ -39,7 +88,7 @@ export default function ShopDashboard() {
   const [topUpBusy, setTopUpBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [newItem, setNewItem] = useState({name: '', category: 'Cake', basePrice: '', addOns: '', imageLink: '', imageFile: null});
+  const [newItem, setNewItem] = useState({name: '', category: 'Cake', basePrice: '', addOns: '', imageLink: '', imageFile: null, isVeg: true});
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editDraft, setEditDraft] = useState({name: '', basePrice: '', imageLink: '', imageFile: null});
@@ -128,8 +177,9 @@ export default function ShopDashboard() {
         available: true,
         imageUrl,
         addOns: parseAddOns(newItem.addOns),
+        isVeg: newItem.category === 'Cake' ? true : newItem.isVeg,
       });
-      setNewItem({name: '', category: 'Cake', basePrice: '', addOns: '', imageLink: '', imageFile: null});
+      setNewItem({name: '', category: 'Cake', basePrice: '', addOns: '', imageLink: '', imageFile: null, isVeg: true});
       setMessage('Item added and is now available to customers.');
       refresh();
     } catch (err) {
@@ -180,6 +230,7 @@ export default function ShopDashboard() {
       basePrice: String(product.basePrice),
       imageLink: /^https?:\/\//i.test(product.imageUrl || '') ? product.imageUrl : '',
       imageFile: null,
+      isVeg: product.isVeg !== false,
     });
     setError('');
   }
@@ -192,7 +243,7 @@ export default function ShopDashboard() {
     setSavingEdit(true);
     setError('');
     try {
-      const payload = {name: editDraft.name.trim(), basePrice: Number(editDraft.basePrice)};
+      const payload = {name: editDraft.name.trim(), basePrice: Number(editDraft.basePrice), isVeg: editDraft.isVeg};
       if (editDraft.imageFile) {
         const form = new FormData();
         form.append('image', editDraft.imageFile);
@@ -350,6 +401,42 @@ export default function ShopDashboard() {
                 </div>
               )}
               {order.assignedTo && <div className="muted" style={{marginTop: 6}}>🛵 Assigned: {order.assignedTo.name}</div>}
+
+              {['ready', 'heading_to_shop'].includes(order.status) && order.pickupCode && (
+                <div className="card" style={{background: '#c2185b', color: '#fff', textAlign: 'center', marginTop: 8}}>
+                  <div style={{fontSize: 12}}>Pickup code — give to delivery partner</div>
+                  <div style={{fontSize: 26, fontWeight: 800, letterSpacing: 6, margin: '4px 0'}}>{order.pickupCode}</div>
+                </div>
+              )}
+              {order.status === 'out_for_delivery' && (
+                <div style={{marginTop: 6, fontWeight: 600, color: '#2e7d32'}}>📦 Picked up — on the way to customer</div>
+              )}
+              {order.status === 'delivered' && (
+                <div style={{marginTop: 6, fontWeight: 600, color: '#2e7d32'}}>✓ Delivered</div>
+              )}
+
+              {['heading_to_shop', 'out_for_delivery'].includes(order.status) && order.assignedTo && (
+                <DeliveryTrackingMap orderId={order._id} />
+              )}
+
+              <div style={{display: 'flex', gap: 8, marginTop: 8}}>
+                <button
+                  className="btn btn-outline"
+                  style={{width: 'auto', flex: '0 0 auto', padding: '6px 12px', fontSize: 13}}
+                  onClick={() => navigate(`/orders/${order._id}/chat?title=${encodeURIComponent(order.user?.name || 'Customer')}`)}
+                >
+                  💬 Message customer
+                </button>
+                {order.assignedTo && (
+                  <button
+                    className="btn btn-outline"
+                    style={{width: 'auto', flex: '0 0 auto', padding: '6px 12px', fontSize: 13}}
+                    onClick={() => navigate(`/orders/${order._id}/chat?channel=pickup&title=${encodeURIComponent(order.assignedTo?.name || 'Delivery partner')}`)}
+                  >
+                    🛵 Message {order.assignedTo?.name || 'delivery partner'}
+                  </button>
+                )}
+              </div>
             </div>
           ))
         )}
@@ -362,6 +449,12 @@ export default function ShopDashboard() {
               <button key={c} className={`tab ${newItem.category === c ? 'active' : ''}`} onClick={() => setNewItem((s) => ({...s, category: c}))}>{c}</button>
             ))}
           </div>
+          {newItem.category !== 'Cake' && (
+            <div className="tab-row">
+              <button type="button" className={`tab ${newItem.isVeg ? 'active' : ''}`} style={newItem.isVeg ? {background: '#2e7d32'} : undefined} onClick={() => setNewItem((s) => ({...s, isVeg: true}))}>🟢 Veg</button>
+              <button type="button" className={`tab ${!newItem.isVeg ? 'active' : ''}`} style={!newItem.isVeg ? {background: '#c62828'} : undefined} onClick={() => setNewItem((s) => ({...s, isVeg: false}))}>🔴 Non-veg</button>
+            </div>
+          )}
           <label className="label">Photo (optional)</label>
           <input type="file" accept="image/*" onChange={(e) => setNewItem((s) => ({...s, imageFile: e.target.files[0], imageLink: ''}))} style={{marginBottom: 12}} />
           <input className="input" placeholder="Or paste a direct image URL (must end in .jpg/.png, not a webpage)" value={newItem.imageLink} onChange={(e) => setNewItem((s) => ({...s, imageLink: e.target.value, imageFile: null}))} />
@@ -385,6 +478,12 @@ export default function ShopDashboard() {
                 <label className="label">Change photo (optional)</label>
                 <input type="file" accept="image/*" onChange={(e) => setEditDraft((d) => ({...d, imageFile: e.target.files[0], imageLink: ''}))} style={{marginBottom: 12}} />
                 <input className="input" placeholder="Or paste a direct image URL (ends in .jpg/.png, not a webpage)" value={editDraft.imageLink} onChange={(e) => setEditDraft((d) => ({...d, imageLink: e.target.value, imageFile: null}))} />
+                {p.category !== 'Cake' && (
+                  <div className="tab-row">
+                    <button type="button" className={`tab ${editDraft.isVeg ? 'active' : ''}`} style={editDraft.isVeg ? {background: '#2e7d32'} : undefined} onClick={() => setEditDraft((d) => ({...d, isVeg: true}))}>🟢 Veg</button>
+                    <button type="button" className={`tab ${!editDraft.isVeg ? 'active' : ''}`} style={!editDraft.isVeg ? {background: '#c62828'} : undefined} onClick={() => setEditDraft((d) => ({...d, isVeg: false}))}>🔴 Non-veg</button>
+                  </div>
+                )}
                 <div style={{display: 'flex', gap: 8}}>
                   <button className="btn btn-outline" onClick={() => setEditingId(null)}>Cancel</button>
                   <button className="btn" onClick={() => saveEdit(p._id)} disabled={savingEdit}>{savingEdit ? 'Saving…' : 'Save'}</button>
@@ -397,7 +496,7 @@ export default function ShopDashboard() {
                     <div style={{width: 48, height: 48, borderRadius: 8, background: '#f6f3f0', flexShrink: 0, overflow: 'hidden'}}>
                       {p.imageUrl && <img src={imageUri(p.imageUrl)} alt="" onError={(e) => { e.target.style.display = 'none'; }} style={{width: '100%', height: '100%', objectFit: 'cover'}} />}
                     </div>
-                    <div><strong>{p.name}</strong><br /><span className="muted">₹{p.basePrice}</span></div>
+                    <div><strong>{p.category !== 'Cake' ? (p.isVeg !== false ? '🟢 ' : '🔴 ') : ''}{p.name}</strong><br /><span className="muted">₹{p.basePrice}</span></div>
                   </div>
                   <button className="btn" style={{width: 'auto', flex: '0 0 auto', padding: '8px 12px', background: p.available ? '#2e7d32' : '#c62828'}} onClick={() => toggleStock(p)}>
                     {p.available ? '✅ In stock' : '⏸️ Out of stock'}
