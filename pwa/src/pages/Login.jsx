@@ -20,7 +20,7 @@ export default function Login() {
     setError('');
     setBusy(true);
     try {
-      await login(phone, password);
+      await login(phone, password, 'customer');
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');

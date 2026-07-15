@@ -36,11 +36,20 @@ export function AuthProvider({children}) {
     })();
   }, []);
 
-  async function login(email, password) {
+  // expectedRole keeps the customer/shop login screens strictly separate: the backend's
+  // password-login endpoint doesn't care which app screen you're on, so without this a
+  // shop account entered on the customer screen (or vice versa) would silently succeed
+  // instead of a clear rejection.
+  async function login(email, password, expectedRole) {
     const data = await loginApi(email, password);
     // Shop accounts with two-factor enabled need a second step.
     if (data.twoFactorRequired) {
       return {twoFactorRequired: true, ticket: data.ticket, email: data.email};
+    }
+    if (expectedRole && data.user.role !== expectedRole) {
+      const err = new Error(`This isn't a ${expectedRole} account.`);
+      err.response = {data: {message: `This isn't a ${expectedRole} account.`}};
+      throw err;
     }
     await AsyncStorage.setItem('cake_token', data.token);
     setUser(data.user);

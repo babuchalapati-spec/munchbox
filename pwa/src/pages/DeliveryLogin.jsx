@@ -19,11 +19,7 @@ export default function DeliveryLogin() {
     setError('');
     setBusy(true);
     try {
-      const result = await login(email, password);
-      if (result.user?.role !== 'delivery') {
-        setError('This account is not a delivery partner');
-        return;
-      }
+      await login(email, password, 'delivery');
       navigate('/');
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');

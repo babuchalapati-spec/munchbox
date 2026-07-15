@@ -42,6 +42,8 @@ export default function ShopOwnerScreen({ navigation }) {
   const [newItem, setNewItem] = useState({ name: '', category: 'Cake', basePrice: '', addOns: '', image: null, imageLink: '' });
   const [adding, setAdding] = useState(false);
   const [topUp, setTopUp] = useState({ amount: '', reference: '', open: false, busy: false });
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [editDraft, setEditDraft] = useState({ name: '', basePrice: '' });
 
   const shopId = user?.shop?._id || user?.shop;
 
@@ -247,6 +249,29 @@ export default function ShopOwnerScreen({ navigation }) {
     }
   }
 
+  function startEditItem(item) {
+    setEditingItemId(item._id);
+    setEditDraft({ name: item.name, basePrice: String(item.basePrice) });
+  }
+
+  async function saveEditItem(itemId) {
+    if (!editDraft.name.trim() || !editDraft.basePrice) {
+      Alert.alert('Missing info', 'Enter a name and price.');
+      return;
+    }
+    setBusyId(itemId);
+    try {
+      await updateProduct(itemId, { name: editDraft.name.trim(), basePrice: Number(editDraft.basePrice) });
+      const refreshed = await listProducts(shopId);
+      setProducts(refreshed || []);
+      setEditingItemId(null);
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.message || 'Could not save changes');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   function removeItem(item) {
     Alert.alert('Delete item', `Remove "${item.name}"?`, [
       { text: 'Cancel', style: 'cancel' },
@@ -417,31 +442,49 @@ export default function ShopOwnerScreen({ navigation }) {
         </View>
 
         {products.length ? products.map((p) => (
-          <View key={p._id} style={styles.itemRow}>
-            {p.imageUrl ? (
-              <Image source={{ uri: imageUri(p.imageUrl) }} style={styles.itemThumb} />
-            ) : (
-              <View style={[styles.itemThumb, styles.itemThumbEmpty]}><Text style={styles.itemThumbIcon}>🍽️</Text></View>
-            )}
-            <View style={{ flex: 1 }}>
-              <Text style={styles.itemName}>{p.name}</Text>
-              <Text style={styles.itemMeta}>{p.category} · ₹{p.basePrice}{p.available ? '' : ' · out of stock'}</Text>
-              {p.available ? null : (
-                <Text style={styles.pendingTag}>⏸️ Hidden from customers — turn it on to show it again</Text>
-              )}
-              {p.addOns?.length ? <Text style={styles.itemAddons}>+ {p.addOns.map((a) => a.name).join(', ')}</Text> : null}
+          editingItemId === p._id ? (
+            <View key={p._id} style={styles.addBox}>
+              <TextInput style={styles.addInput} placeholder="Item name" value={editDraft.name} onChangeText={(v) => setEditDraft((d) => ({ ...d, name: v }))} />
+              <TextInput style={styles.addInput} placeholder="Price ₹" keyboardType="number-pad" value={editDraft.basePrice} onChangeText={(v) => setEditDraft((d) => ({ ...d, basePrice: v.replace(/[^0-9]/g, '') }))} />
+              <View style={styles.addRow}>
+                <TouchableOpacity style={[styles.assignBtn, { flex: 1 }]} onPress={() => setEditingItemId(null)}>
+                  <Text style={styles.assignBtnText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.addBtn} onPress={() => saveEditItem(p._id)} disabled={busyId === p._id}>
+                  {busyId === p._id ? <ActivityIndicator color="#fff" /> : <Text style={styles.addBtnText}>Save</Text>}
+                </TouchableOpacity>
+              </View>
             </View>
-            <TouchableOpacity
-              style={[styles.availBtn, p.available ? styles.availOn : styles.availOff]}
-              onPress={() => toggleAvailable(p)}
-              disabled={busyId === p._id}
-            >
-              <Text style={styles.availText}>{p.available ? 'In stock' : 'Out'}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => removeItem(p)} disabled={busyId === p._id} style={styles.delBtn}>
-              <Text style={styles.delText}>✕</Text>
-            </TouchableOpacity>
-          </View>
+          ) : (
+            <View key={p._id} style={styles.itemRow}>
+              {p.imageUrl ? (
+                <Image source={{ uri: imageUri(p.imageUrl) }} style={styles.itemThumb} />
+              ) : (
+                <View style={[styles.itemThumb, styles.itemThumbEmpty]}><Text style={styles.itemThumbIcon}>🍽️</Text></View>
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={styles.itemName}>{p.name}</Text>
+                <Text style={styles.itemMeta}>{p.category} · ₹{p.basePrice}{p.available ? '' : ' · out of stock'}</Text>
+                {p.available ? null : (
+                  <Text style={styles.pendingTag}>⏸️ Hidden from customers — turn it on to show it again</Text>
+                )}
+                {p.addOns?.length ? <Text style={styles.itemAddons}>+ {p.addOns.map((a) => a.name).join(', ')}</Text> : null}
+                <TouchableOpacity onPress={() => startEditItem(p)}>
+                  <Text style={styles.editLink}>✏️ Edit</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                style={[styles.availBtn, p.available ? styles.availOn : styles.availOff]}
+                onPress={() => toggleAvailable(p)}
+                disabled={busyId === p._id}
+              >
+                <Text style={styles.availText}>{p.available ? 'In stock' : 'Out'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => removeItem(p)} disabled={busyId === p._id} style={styles.delBtn}>
+                <Text style={styles.delText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          )
         )) : <Text style={styles.muted}>No items yet. Add your first item above.</Text>}
       </View>
 
@@ -552,6 +595,7 @@ const styles = StyleSheet.create({
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: 8, borderTopWidth: 1, borderTopColor: colors.border, paddingVertical: 10 },
   itemName: { color: colors.text, fontWeight: '600' },
   itemMeta: { color: colors.muted, fontSize: 12, marginTop: 2 },
+  editLink: { color: colors.primary, fontSize: 12, fontWeight: '600', marginTop: 4 },
   availBtn: { borderRadius: 6, paddingHorizontal: 10, paddingVertical: 6 },
   availOn: { backgroundColor: '#e8f5e9' },
   availOff: { backgroundColor: '#ffebee' },

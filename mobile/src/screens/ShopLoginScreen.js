@@ -67,7 +67,7 @@ export default function ShopLoginScreen({ navigation }) {
     setError('');
     setBusy(true);
     try {
-      const res = await login(email.trim(), password);
+      const res = await login(email.trim(), password, 'shop');
       if (res.twoFactorRequired) {
         setTicket(res.ticket);
         setMode('twofa');

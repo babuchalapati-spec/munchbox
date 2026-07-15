@@ -33,7 +33,7 @@ export default function OtpLoginScreen({navigation}) {
     setError('');
     setBusy(true);
     try {
-      await login(phone, password);
+      await login(phone, password, 'customer');
       // On success the navigator switches to the app automatically.
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');

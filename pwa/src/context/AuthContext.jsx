@@ -25,9 +25,18 @@ export function AuthProvider({children}) {
     })();
   }, []);
 
-  async function login(identifier, password) {
+  // expectedRole keeps the three login pages strictly separate: the backend's
+  // password-login endpoint doesn't care which "app" you're in, so without this a
+  // shop/delivery account entered on the customer page (or vice versa) would silently
+  // succeed and land them in the wrong dashboard instead of a clear rejection.
+  async function login(identifier, password, expectedRole) {
     const {data} = await client.post('/auth/login', {identifier, password});
     if (data.twoFactorRequired) return {twoFactorRequired: true, ticket: data.ticket};
+    if (expectedRole && data.user.role !== expectedRole) {
+      const err = new Error(`This isn't a ${expectedRole} account.`);
+      err.response = {data: {message: `This isn't a ${expectedRole} account.`}};
+      throw err;
+    }
     localStorage.setItem('mb_token', data.token);
     setUser(data.user);
     return {user: data.user};

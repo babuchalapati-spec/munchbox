@@ -15,13 +15,9 @@ export default function ShopLogin() {
     setError('');
     setBusy(true);
     try {
-      const result = await login(email, password);
+      const result = await login(email, password, 'shop');
       if (result.twoFactorRequired) {
         setError('This shop has two-factor turned on — use the mobile app to sign in.');
-        return;
-      }
-      if (result.user?.role !== 'shop') {
-        setError('This account is not a shop owner');
         return;
       }
       navigate('/');
