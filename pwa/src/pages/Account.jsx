@@ -27,6 +27,7 @@ export default function Account() {
           <p className="muted">Share this code with a friend. They get a welcome coupon, and you get a bonus after their first order.</p>
           <p style={{fontSize: 18, fontWeight: 800, color: '#c2185b'}}>{user?.referralCode}</p>
         </div>
+        <button className="btn btn-outline" onClick={() => navigate('/payment-history')} style={{marginBottom: 12}}>Payment history</button>
         <button className="btn btn-outline" onClick={handleLogout}>Log out</button>
         <p className="muted" style={{textAlign: 'center', marginTop: 16}}>Munchbox web app</p>
       </div>

@@ -70,6 +70,13 @@ export default function AccountScreen({navigation}) {
 
       <TouchableOpacity
         style={styles.linkRow}
+        onPress={() => navigation.navigate('PaymentHistory')}>
+        <Text style={styles.linkRowText}>Payment history</Text>
+        <Text style={styles.linkChevron}>{'>'}</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.linkRow}
         onPress={() => navigation.navigate('Help')}>
         <Text style={styles.linkRowText}>Help & FAQ</Text>
         <Text style={styles.linkChevron}>{'>'}</Text>

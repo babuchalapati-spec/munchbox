@@ -18,6 +18,7 @@ import Checkout from './pages/Checkout';
 import Orders from './pages/Orders';
 import OrderTracking from './pages/OrderTracking';
 import Account from './pages/Account';
+import PaymentHistory from './pages/PaymentHistory';
 
 function Protected({children}) {
   const {user, loading} = useAuth();
@@ -61,6 +62,7 @@ function Routed() {
       <Route path="/orders" element={<Protected><CustomerOnly><Orders /></CustomerOnly></Protected>} />
       <Route path="/orders/:id" element={<Protected><OrderTracking /></Protected>} />
       <Route path="/account" element={<Protected><CustomerOnly><Account /></CustomerOnly></Protected>} />
+      <Route path="/payment-history" element={<Protected><CustomerOnly><PaymentHistory /></CustomerOnly></Protected>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

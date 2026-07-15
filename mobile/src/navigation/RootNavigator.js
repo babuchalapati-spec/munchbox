@@ -31,6 +31,7 @@ import ShopOwnerScreen from '../screens/ShopOwnerScreen';
 import EarningsScreen from '../screens/EarningsScreen';
 import RazorpayCheckoutScreen from '../screens/RazorpayCheckoutScreen';
 import HelpChatScreen from '../screens/HelpChatScreen';
+import PaymentHistoryScreen from '../screens/PaymentHistoryScreen';
 
 const authScreens = {
   OtpLogin: { component: OtpLoginScreen, headerShown: false },
@@ -62,6 +63,7 @@ const customerScreens = {
   OrderTracking: { component: OrderTrackingScreen, title: 'Track order' },
   Chat: { component: ChatScreen, title: 'Chat' },
   Help: { component: HelpChatScreen, title: 'Help' },
+  PaymentHistory: { component: PaymentHistoryScreen, title: 'Payment history' },
   Account: { component: AccountScreen, title: 'Account' },
 };
 
