@@ -7,11 +7,13 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import {useCart} from '../context/CartContext';
 import {useAuth} from '../context/AuthContext';
 import {placeOrder, createRazorpayOrder, reportPaymentFailure, listMyOrders} from '../api/orders';
 import {deliveryQuote} from '../api/shops';
+import {getPaymentInfo} from '../api/ledger';
 import {requestLocationPermission, getCurrentPosition} from '../location';
 import {colors} from '../theme';
 
@@ -44,9 +46,15 @@ export default function CheckoutScreen({navigation}) {
   const [deliverySlot, setDeliverySlot] = useState('');
   const [couponCode, setCouponCode] = useState('');
   const [tip, setTip] = useState(0);
-  const [paymentMethod, setPaymentMethod] = useState('COD'); // 'COD' | 'online'
+  const [paymentMethod, setPaymentMethod] = useState('COD'); // 'COD' | 'upi' | 'online'
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [upiInfo, setUpiInfo] = useState(null);
+  const [upiReference, setUpiReference] = useState('');
+
+  useEffect(() => {
+    getPaymentInfo().then(setUpiInfo).catch(() => {});
+  }, []);
 
   // Delivery location + fee quote
   const [location, setLocation] = useState(null); // { lat, lng }
@@ -124,15 +132,35 @@ export default function CheckoutScreen({navigation}) {
     }
   }
 
+  async function payViaUpiApp() {
+    if (!upiInfo?.upiId) {
+      setError('The admin has not added a UPI ID yet. Please choose Cash on Delivery.');
+      return;
+    }
+    const url =
+      `upi://pay?pa=${encodeURIComponent(upiInfo.upiId)}` +
+      `&pn=${encodeURIComponent(upiInfo.payeeName || 'Munchbox')}` +
+      `&am=${grandTotal}&cu=INR` +
+      `&tn=${encodeURIComponent(`Munchbox order at ${shop?.name || ''}`)}`;
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (!supported) {
+        setError(`No UPI app found. Pay ₹${grandTotal} to UPI ID: ${upiInfo.upiId}, then enter the reference below.`);
+        return;
+      }
+      await Linking.openURL(url);
+    } catch (err) {
+      setError('Could not open a UPI app. Pay manually and enter the reference below.');
+    }
+  }
+
   async function handlePlaceOrder() {
     if (!deliveryAddress || !phone) {
       setError('Delivery address and phone are required');
       return;
     }
-    if (!location) {
-      setError(
-        'Please set your delivery location to calculate the delivery charge.',
-      );
+    if (paymentMethod === 'upi' && !upiReference.trim()) {
+      setError('Pay via UPI first, then enter the reference/transaction ID below.');
       return;
     }
     if (
@@ -166,6 +194,17 @@ export default function CheckoutScreen({navigation}) {
     setError('');
     setSubmitting(true);
     try {
+      if (paymentMethod === 'upi') {
+        await placeOrder({
+          ...orderPayload,
+          paymentMethod: 'upi',
+          payment: {upiReference: upiReference.trim()},
+        });
+        clear();
+        navigation.reset({index: 0, routes: [{name: 'Orders'}]});
+        return;
+      }
+
       if (paymentMethod === 'online') {
         const checkoutOrder = await createRazorpayOrder(orderPayload);
         setSubmitting(false);
@@ -321,13 +360,35 @@ export default function CheckoutScreen({navigation}) {
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.tipChip, paymentMethod === 'online' && styles.tipChipActive]}
-          onPress={() => setPaymentMethod('online')}>
-          <Text style={[styles.tipChipText, paymentMethod === 'online' && styles.tipChipTextActive]}>
-            💳 Pay online (UPI / Card)
+          style={[styles.tipChip, paymentMethod === 'upi' && styles.tipChipActive]}
+          onPress={() => setPaymentMethod('upi')}>
+          <Text style={[styles.tipChipText, paymentMethod === 'upi' && styles.tipChipTextActive]}>
+            📱 Pay via UPI
           </Text>
         </TouchableOpacity>
       </View>
+
+      {paymentMethod === 'upi' && (
+        <View style={styles.upiBox}>
+          <Text style={styles.hint}>
+            Tap to pay with any UPI app (PhonePe, Google Pay, etc.), then enter the reference number you get after
+            paying. The shop will confirm it before preparing your order.
+          </Text>
+          <TouchableOpacity style={styles.locButton} onPress={payViaUpiApp}>
+            <Text style={styles.locButtonText}>📱 Pay ₹{grandTotal} via UPI app</Text>
+          </TouchableOpacity>
+          {upiInfo?.upiId ? (
+            <Text style={styles.hint}>Or pay manually to UPI ID: {upiInfo.upiId}</Text>
+          ) : null}
+          <Text style={styles.label}>UPI reference / transaction ID</Text>
+          <TextInput
+            style={styles.input}
+            value={upiReference}
+            onChangeText={setUpiReference}
+            placeholder="e.g. 123456789012"
+          />
+        </View>
+      )}
 
       <Text style={styles.label}>Tip your delivery partner (optional)</Text>
       <View style={styles.tipRow}>
@@ -377,7 +438,11 @@ export default function CheckoutScreen({navigation}) {
           <ActivityIndicator color="#fff" />
         ) : (
           <Text style={styles.buttonText}>
-            {paymentMethod === 'online' ? `Pay ₹${grandTotal} online` : 'Place order (Cash on Delivery)'}
+            {paymentMethod === 'upi'
+              ? 'Submit order (UPI paid)'
+              : paymentMethod === 'online'
+              ? `Pay ₹${grandTotal} online`
+              : 'Place order (Cash on Delivery)'}
           </Text>
         )}
       </TouchableOpacity>
@@ -427,6 +492,14 @@ const styles = StyleSheet.create({
   addressChipActive: {borderColor: colors.primary, backgroundColor: colors.primary},
   addressChipText: {fontSize: 12, color: colors.text},
   addressChipTextActive: {color: '#fff', fontWeight: '600'},
+  upiBox: {
+    backgroundColor: colors.card,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 14,
+    marginTop: 10,
+  },
   tipRow: {flexDirection: 'row', flexWrap: 'wrap', gap: 8},
   tipChip: {
     borderWidth: 1,

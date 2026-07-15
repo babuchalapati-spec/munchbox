@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { listPendingTopUps, reviewTopUp } from '../../api/ledger';
 import { getSettings, updateSettings } from '../../api/settings';
-import { listPaymentFailures, resolvePaymentFailure } from '../../api/payments';
+import { listPaymentFailures, resolvePaymentFailure, listPendingUpiPayments, reviewUpiPayment } from '../../api/payments';
 import { listOrders } from '../../api/orders';
 
 export default function Payments() {
@@ -9,6 +9,7 @@ export default function Payments() {
   const [upi, setUpi] = useState({ upiId: '', payeeName: '', phone: '' });
   const [failures, setFailures] = useState([]);
   const [recentOrders, setRecentOrders] = useState([]);
+  const [pendingUpiOrders, setPendingUpiOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
   const [savingUpi, setSavingUpi] = useState(false);
@@ -18,11 +19,12 @@ export default function Payments() {
   async function refresh() {
     setLoading(true);
     try {
-      const [entries, settings, failedPayments, orders] = await Promise.all([
+      const [entries, settings, failedPayments, orders, pendingUpi] = await Promise.all([
         listPendingTopUps(),
         getSettings(),
         listPaymentFailures(),
         listOrders(),
+        listPendingUpiPayments(),
       ]);
       setPending(entries);
       setUpi({
@@ -32,6 +34,7 @@ export default function Payments() {
       });
       setFailures(failedPayments);
       setRecentOrders(orders.filter((o) => o.payment?.method === 'online').slice(0, 20));
+      setPendingUpiOrders(pendingUpi);
     } catch (err) {
       setError('Could not load payments');
     } finally {
@@ -67,6 +70,20 @@ export default function Payments() {
       setError(err.response?.data?.message || 'Could not save UPI details');
     } finally {
       setSavingUpi(false);
+    }
+  }
+
+  async function decideUpiOrder(orderId, action) {
+    if (action === 'confirm' && !window.confirm('Confirm this customer payment arrived?')) return;
+    setBusyId(orderId);
+    setError('');
+    try {
+      await reviewUpiPayment(orderId, action);
+      setPendingUpiOrders((prev) => prev.filter((o) => o._id !== orderId));
+    } catch (err) {
+      setError(err.response?.data?.message || 'Action failed');
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -125,6 +142,50 @@ export default function Payments() {
             </tbody>
           </table>
         </div>
+      )}
+
+      <h2 style={{ marginTop: 16 }}>Customer UPI payments to confirm ({pendingUpiOrders.length})</h2>
+      <p style={{ color: '#776b63' }}>
+        A customer paid by UPI at checkout and submitted a reference. Check the money arrived, then confirm — the shop
+        won't see this order as paid until you do.
+      </p>
+      {pendingUpiOrders.length === 0 ? (
+        <p style={{ color: '#2e7d32', fontWeight: 600 }}>✅ No customer UPI payments waiting.</p>
+      ) : (
+        <table width="100%" cellPadding="8" style={{ borderCollapse: 'collapse', marginBottom: 24 }}>
+          <thead>
+            <tr style={{ textAlign: 'left', borderBottom: '2px solid #e6e0da' }}>
+              <th>Customer</th>
+              <th>Shop</th>
+              <th>Amount</th>
+              <th>UPI reference</th>
+              <th>Placed</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pendingUpiOrders.map((o) => (
+              <tr key={o._id} style={{ borderBottom: '1px solid #e6e0da' }}>
+                <td>
+                  <strong>{o.user?.name || '—'}</strong>
+                  <div style={{ color: '#776b63', fontSize: '0.8rem' }}>{o.user?.phone}</div>
+                </td>
+                <td>{o.shop?.name || '—'}</td>
+                <td style={{ fontWeight: 700 }}>₹{o.totalAmount}</td>
+                <td>{o.payment?.upiReference || '—'}</td>
+                <td style={{ color: '#776b63', fontSize: '0.85rem' }}>{new Date(o.createdAt).toLocaleString()}</td>
+                <td style={{ whiteSpace: 'nowrap' }}>
+                  <button onClick={() => decideUpiOrder(o._id, 'confirm')} disabled={busyId === o._id} style={{ background: '#2e7d32', color: '#fff', marginRight: 6 }}>
+                    Confirm
+                  </button>
+                  <button onClick={() => decideUpiOrder(o._id, 'reject')} disabled={busyId === o._id} style={{ background: '#c62828', color: '#fff' }}>
+                    Reject
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
 
       <h2 style={{ marginTop: 16 }}>Recent online payments (customers)</h2>

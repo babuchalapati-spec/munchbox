@@ -74,10 +74,14 @@ const orderSchema = new mongoose.Schema(
     totalAmount: { type: Number, required: true },
     paymentMethod: { type: String, default: 'COD' },
     payment: {
-      method: { type: String, enum: ['COD', 'online'], default: 'COD' },
+      // 'online' = Razorpay (auto-verified); 'upi' = customer pays the admin's UPI ID
+      // directly and submits a reference, same as the shop-deposit flow — needs a
+      // human (admin/shop) to confirm the money actually arrived.
+      method: { type: String, enum: ['COD', 'online', 'upi'], default: 'COD' },
       status: { type: String, enum: ['pending', 'paid', 'failed', 'refunded'], default: 'pending' },
       gatewayOrderId: { type: String, default: '' },
       gatewayPaymentId: { type: String, default: '' },
+      upiReference: { type: String, default: '' },
       paidAt: { type: Date, default: null },
     },
     assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },

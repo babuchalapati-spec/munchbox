@@ -497,9 +497,46 @@ async function resolvePaymentFailure(req, res) {
   res.json({ failure });
 }
 
+// Orders paid by manual UPI, awaiting a human (admin or the order's own shop) to
+// confirm the money actually arrived — same trust model as shop-deposit top-ups.
+async function listPendingUpiPayments(req, res) {
+  const filter = { 'payment.method': 'upi', 'payment.status': 'pending' };
+  if (req.user.role === 'shop') {
+    if (!req.user.shop) return res.json({ orders: [] });
+    filter.shop = req.user.shop;
+  }
+  const orders = await Order.find(filter)
+    .populate('user', 'name phone')
+    .populate('shop', 'name')
+    .sort({ createdAt: -1 });
+  res.json({ orders });
+}
+
+async function reviewUpiPayment(req, res) {
+  const { action } = req.body; // 'confirm' | 'reject'
+  const order = await Order.findById(req.params.id);
+  if (!order) return res.status(404).json({ message: 'Order not found' });
+  if (order.payment?.method !== 'upi') {
+    return res.status(400).json({ message: 'This order was not paid by UPI' });
+  }
+  if (req.user.role === 'shop' && order.shop?.toString() !== req.user.shop?.toString()) {
+    return res.status(403).json({ message: 'Not your order' });
+  }
+  if (action === 'confirm') {
+    order.payment.status = 'paid';
+    order.payment.paidAt = new Date();
+  } else if (action === 'reject') {
+    order.payment.status = 'failed';
+  } else {
+    return res.status(400).json({ message: "action must be 'confirm' or 'reject'" });
+  }
+  await order.save();
+  res.json({ order });
+}
+
 async function placeOrder(req, res) {
   const { deliveryAddress, phone, deliverySlot, paymentMethod, payment } = req.body;
-  const method = paymentMethod === 'online' ? 'online' : 'COD';
+  const method = ['online', 'upi'].includes(paymentMethod) ? paymentMethod : 'COD';
 
   let quote;
   try {
@@ -552,6 +589,15 @@ async function placeOrder(req, res) {
       return res.status(400).json({ message: 'Payment amount does not match the order total.' });
     }
     paymentInfo = { method: 'online', status: 'paid', gatewayOrderId, gatewayPaymentId, paidAt: new Date() };
+  } else if (method === 'upi') {
+    // No automated verification here — the customer paid the admin's UPI ID directly
+    // and is submitting the reference number for a human (admin/shop) to confirm,
+    // same trust model as the shop-deposit top-up flow.
+    const upiReference = String(payment?.upiReference || '').trim();
+    if (!upiReference) {
+      return res.status(400).json({ message: 'Enter the UPI reference/transaction ID after paying.' });
+    }
+    paymentInfo = { method: 'upi', status: 'pending', upiReference };
   }
 
   // Guards against a double-tap or a client retrying a slow request: if this same
@@ -1001,6 +1047,8 @@ module.exports = {
   reportPaymentFailure,
   listPaymentFailures,
   resolvePaymentFailure,
+  listPendingUpiPayments,
+  reviewUpiPayment,
   placeCourierOrder,
   courierQuote,
   listMyCoupons,

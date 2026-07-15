@@ -44,18 +44,20 @@ export default function ShopDashboard() {
   const [editingId, setEditingId] = useState(null);
   const [editDraft, setEditDraft] = useState({name: '', basePrice: '', imageLink: '', imageFile: null});
   const [savingEdit, setSavingEdit] = useState(false);
+  const [pendingUpiOrders, setPendingUpiOrders] = useState([]);
 
   const shopId = user?.shop?._id || user?.shop;
 
   async function refresh() {
     try {
-      const [ordersRes, partnersRes, productsRes, ledgerRes, paymentRes, shopRes] = await Promise.all([
+      const [ordersRes, partnersRes, productsRes, ledgerRes, paymentRes, shopRes, upiRes] = await Promise.all([
         client.get('/orders'),
         client.get('/orders/delivery-partners'),
         client.get('/products', {params: {shop: shopId}}),
         client.get('/auth/ledger'),
         client.get('/settings/payment-info'),
         shopId ? client.get(`/shops/${shopId}`) : Promise.resolve({data: {shop: null}}),
+        client.get('/payments/upi/pending'),
       ]);
       setOrders(ordersRes.data.orders);
       setPartners(partnersRes.data.partners);
@@ -63,6 +65,7 @@ export default function ShopDashboard() {
       setLedger(ledgerRes.data);
       setPaymentInfo(paymentRes.data.payments);
       setShop(shopRes.data.shop);
+      setPendingUpiOrders(upiRes.data.orders);
     } catch (err) {
       setError(err.response?.data?.message || 'Could not load shop data');
     }
@@ -219,6 +222,17 @@ export default function ShopDashboard() {
     }
   }
 
+  async function reviewUpi(orderId, action) {
+    if (action === 'confirm' && !window.confirm('Confirm this customer payment arrived?')) return;
+    setError('');
+    try {
+      await client.put(`/payments/upi/${orderId}/review`, {action});
+      setPendingUpiOrders((prev) => prev.filter((o) => o._id !== orderId));
+    } catch (err) {
+      setError(err.response?.data?.message || 'Action failed');
+    }
+  }
+
   function handleLogout() {
     logout();
     navigate('/login');
@@ -280,6 +294,22 @@ export default function ShopDashboard() {
           )}
         </div>
 
+        {pendingUpiOrders.length > 0 && (
+          <div className="card" style={{borderColor: '#c62828', borderWidth: 1}}>
+            <p style={{fontWeight: 700, marginTop: 0}}>💳 UPI payments to confirm ({pendingUpiOrders.length})</p>
+            {pendingUpiOrders.map((o) => (
+              <div key={o._id} style={{borderTop: '1px solid #e6e0da', paddingTop: 10, marginTop: 10}}>
+                <div><strong>{o.user?.name}</strong> · ₹{o.totalAmount}</div>
+                <div className="muted">Reference: {o.payment?.upiReference || '—'}</div>
+                <div style={{display: 'flex', gap: 8, marginTop: 6}}>
+                  <button className="btn" style={{width: 'auto', flex: '0 0 auto', padding: '6px 12px', background: '#2e7d32'}} onClick={() => reviewUpi(o._id, 'confirm')}>Confirm</button>
+                  <button className="btn" style={{width: 'auto', flex: '0 0 auto', padding: '6px 12px', background: '#c62828'}} onClick={() => reviewUpi(o._id, 'reject')}>Reject</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         <h3>Orders ({orders.length})</h3>
         {orders.length === 0 ? (
           <p className="muted">No orders yet.</p>
@@ -293,7 +323,12 @@ export default function ShopDashboard() {
               {order.items.map((item, idx) => (
                 <div key={idx} className="muted">{item.quantity}× {item.name}</div>
               ))}
-              <div className="muted">Total: ₹{order.totalAmount} · {order.payment?.method === 'online' ? `Online (${order.payment.status})` : 'Cash on Delivery'}</div>
+              <div className="muted">
+                Total: ₹{order.totalAmount} ·{' '}
+                {order.payment?.method === 'online' || order.payment?.method === 'upi'
+                  ? `${order.payment.method === 'upi' ? 'UPI' : 'Online'} (${order.payment.status})`
+                  : 'Cash on Delivery'}
+              </div>
               <div className="muted">Deliver to: {order.deliveryAddress}</div>
 
               {NEXT_STATUS[order.status] && (

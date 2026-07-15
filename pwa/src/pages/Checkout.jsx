@@ -39,10 +39,16 @@ export default function Checkout() {
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [upiInfo, setUpiInfo] = useState(null);
+  const [upiReference, setUpiReference] = useState('');
 
   useEffect(() => {
     if (!shop) navigate('/');
   }, [shop, navigate]);
+
+  useEffect(() => {
+    client.get('/settings/payment-info').then(({data}) => setUpiInfo(data.payments)).catch(() => {});
+  }, []);
 
   const grandTotal = itemsTotal + (quote?.deliveryFee || 0) + tip;
 
@@ -108,12 +114,36 @@ export default function Checkout() {
     };
   }
 
+  function payViaUpiApp() {
+    if (!upiInfo?.upiId) {
+      setError('The admin has not added a UPI ID yet. Please choose Cash on Delivery.');
+      return;
+    }
+    const amount = grandTotal;
+    const url = `upi://pay?pa=${encodeURIComponent(upiInfo.upiId)}&pn=${encodeURIComponent(upiInfo.payeeName || 'Munchbox')}&am=${amount}&cu=INR&tn=${encodeURIComponent(`Munchbox order at ${shop.name}`)}`;
+    window.location.href = url;
+  }
+
   async function placeOrder() {
     if (!deliveryAddress || !phone) return setError('Delivery address and phone are required');
+    if (paymentMethod === 'upi' && !upiReference.trim()) {
+      return setError('Pay via UPI first, then enter the reference/transaction ID below.');
+    }
 
     setError('');
     setSubmitting(true);
     try {
+      if (paymentMethod === 'upi') {
+        const {data} = await client.post('/orders', {
+          ...buildPayload(),
+          paymentMethod: 'upi',
+          payment: {upiReference: upiReference.trim()},
+        });
+        clear();
+        navigate(`/orders/${data.order._id}`);
+        return;
+      }
+
       if (paymentMethod === 'online') {
         const {data: checkoutOrder} = await client.post('/payments/razorpay/order', buildPayload());
         await loadRazorpayScript();
@@ -208,8 +238,18 @@ export default function Checkout() {
         <label className="label">Payment method</label>
         <div className="tab-row">
           <button className={`tab ${paymentMethod === 'COD' ? 'active' : ''}`} onClick={() => setPaymentMethod('COD')}>💵 Cash on Delivery</button>
-          <button className={`tab ${paymentMethod === 'online' ? 'active' : ''}`} onClick={() => setPaymentMethod('online')}>💳 Pay online</button>
+          <button className={`tab ${paymentMethod === 'upi' ? 'active' : ''}`} onClick={() => setPaymentMethod('upi')}>📱 Pay via UPI</button>
         </div>
+
+        {paymentMethod === 'upi' && (
+          <div className="card">
+            <p className="muted" style={{marginBottom: 10}}>Tap to pay with any UPI app (PhonePe, Google Pay, etc.), then enter the reference number you get after paying. The shop will confirm it before preparing your order.</p>
+            <button type="button" className="btn" onClick={payViaUpiApp} style={{marginBottom: 12}}>📱 Pay ₹{grandTotal} via UPI app</button>
+            {upiInfo?.upiId && <p className="muted" style={{marginBottom: 10}}>Or pay manually to UPI ID: <strong>{upiInfo.upiId}</strong></p>}
+            <label className="label">UPI reference / transaction ID</label>
+            <input className="input" value={upiReference} onChange={(e) => setUpiReference(e.target.value)} placeholder="e.g. 123456789012" />
+          </div>
+        )}
 
         <div className="card">
           <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: 6}}>
@@ -231,7 +271,13 @@ export default function Checkout() {
       </div>
       <div style={{position: 'sticky', bottom: 0, background: '#fff', borderTop: '1px solid #e6e0da', padding: 16}}>
         <button className="btn" onClick={placeOrder} disabled={submitting}>
-          {submitting ? 'Placing…' : paymentMethod === 'online' ? `Pay ₹${grandTotal} online` : 'Place order (Cash on Delivery)'}
+          {submitting
+            ? 'Placing…'
+            : paymentMethod === 'upi'
+            ? 'Submit order (UPI paid)'
+            : paymentMethod === 'online'
+            ? `Pay ₹${grandTotal} online`
+            : 'Place order (Cash on Delivery)'}
         </button>
       </div>
     </div>
