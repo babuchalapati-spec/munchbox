@@ -10,9 +10,11 @@ const CATEGORIES = [
 
 export default function ShopRegister() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({name: '', email: '', password: '', phone: '', shopName: '', category: 'cake', address: ''});
+  const [form, setForm] = useState({name: '', email: '', password: '', phone: '', shopName: '', category: 'cake', address: '', gstNumber: '', fssaiNumber: ''});
   const [location, setLocation] = useState(null);
   const [locating, setLocating] = useState(false);
+  const [certFile, setCertFile] = useState(null);
+  const [uploadingCert, setUploadingCert] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -51,12 +53,22 @@ export default function ShopRegister() {
     setError('');
     setBusy(true);
     try {
-      const {data} = await client.post('/auth/shop-register', {...form, lat: location?.lat, lng: location?.lng});
+      let fssaiCertificateUrl = '';
+      if (certFile) {
+        setUploadingCert(true);
+        const fd = new FormData();
+        fd.append('image', certFile);
+        const {data: uploadData} = await client.post('/uploads', fd, {headers: {'Content-Type': 'multipart/form-data'}, timeout: 120000});
+        fssaiCertificateUrl = uploadData.url;
+        setUploadingCert(false);
+      }
+      const {data} = await client.post('/auth/shop-register', {...form, lat: location?.lat, lng: location?.lng, fssaiCertificateUrl});
       setMessage(data.message || 'Registration submitted. An admin will review and approve your shop before you can log in.');
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed');
     } finally {
       setBusy(false);
+      setUploadingCert(false);
     }
   }
 
@@ -109,7 +121,16 @@ export default function ShopRegister() {
             {locating ? 'Locating…' : location ? '✓ Location set — tap to update' : '📍 Pin my shop\'s exact GPS location'}
           </button>
 
-          <button className="btn" disabled={busy}>{busy ? 'Submitting…' : 'Register shop'}</button>
+          <label className="label">GST number (optional)</label>
+          <input className="input" value={form.gstNumber} onChange={(e) => update('gstNumber', e.target.value.toUpperCase())} placeholder="e.g. 22AAAAA0000A1Z5" />
+
+          <label className="label">FSSAI license number (optional)</label>
+          <input className="input" value={form.fssaiNumber} onChange={(e) => update('fssaiNumber', e.target.value)} placeholder="14-digit FSSAI number" />
+
+          <label className="label">FSSAI certificate (optional)</label>
+          <input type="file" accept="image/*,.pdf" onChange={(e) => setCertFile(e.target.files[0])} style={{marginBottom: 16}} />
+
+          <button className="btn" disabled={busy}>{busy ? (uploadingCert ? 'Uploading certificate…' : 'Submitting…') : 'Register shop'}</button>
         </form>
         <Link className="link" to="/shop-login">← Back to sign in</Link>
       </div>

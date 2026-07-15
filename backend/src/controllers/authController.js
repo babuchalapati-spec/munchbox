@@ -403,7 +403,7 @@ async function listShopAccounts(req, res) {
 // admin must grant `twoFactor.allowed` before this shop can arm it (see
 // setShopTwoFactorPermission), since some shops want it and others don't.
 async function shopRegister(req, res) {
-  const { name, email, password, phone, shopName, category, address, lat, lng } = req.body;
+  const { name, email, password, phone, shopName, category, address, lat, lng, gstNumber, fssaiNumber, fssaiCertificateUrl } = req.body;
   if (!name || !email || !password || !shopName || !phone) {
     return res.status(400).json({ message: 'Your name, email, password, phone and shop name are required' });
   }
@@ -437,6 +437,9 @@ async function shopRegister(req, res) {
     location: { lat: Number(shopLat), lng: Number(shopLng) },
     available: false,
     subscription: { active: false, plan: 'pending', endsAt: new Date() },
+    gstNumber: gstNumber || '',
+    fssaiNumber: fssaiNumber || '',
+    fssaiCertificateUrl: fssaiCertificateUrl || '',
   });
 
   const hashed = await bcrypt.hash(password, 10);

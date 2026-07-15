@@ -10,8 +10,10 @@ import {
   Alert,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
 import { useAuth } from '../context/AuthContext';
 import { shopRegister, requestOtp } from '../api/auth';
+import { uploadImage } from '../api/upload';
 import { requestLocationPermission, getCurrentPosition } from '../location';
 import { colors, brandGradient } from '../theme';
 
@@ -31,11 +33,33 @@ export default function ShopLoginScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [code, setCode] = useState('');
   const [ticket, setTicket] = useState('');
-  const [form, setForm] = useState({ name: '', phone: '', shopName: '', category: 'cake', address: '' });
+  const [form, setForm] = useState({ name: '', phone: '', shopName: '', category: 'cake', address: '', gstNumber: '', fssaiNumber: '' });
   const [location, setLocation] = useState(null);
   const [locating, setLocating] = useState(false);
+  const [certFile, setCertFile] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+
+  function pickCertificate() {
+    Alert.alert('FSSAI certificate', 'Choose a source', [
+      { text: 'Camera', onPress: () => grabCertificate(launchCamera) },
+      { text: 'Gallery', onPress: () => grabCertificate(launchImageLibrary) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }
+
+  async function grabCertificate(launcher) {
+    const res = await launcher({ mediaType: 'photo', quality: 0.7 });
+    if (res.didCancel || !res.assets?.[0]) return;
+    setCertFile({ uri: res.assets[0].uri, uploading: true });
+    try {
+      const url = await uploadImage(res.assets[0]);
+      setCertFile({ uri: res.assets[0].uri, url });
+    } catch (err) {
+      setCertFile(null);
+      setError('Could not upload the certificate. Try again.');
+    }
+  }
 
   async function useMyLocation() {
     setError('');
@@ -148,6 +172,9 @@ export default function ShopLoginScreen({ navigation }) {
         address: form.address,
         lat: location?.lat,
         lng: location?.lng,
+        gstNumber: form.gstNumber,
+        fssaiNumber: form.fssaiNumber,
+        fssaiCertificateUrl: certFile?.url || '',
       });
       Alert.alert(
         'Registration submitted',
@@ -267,6 +294,13 @@ export default function ShopLoginScreen({ navigation }) {
                 {location ? '✓ Location set — tap to update' : "📍 Pin my shop's exact GPS location"}
               </Text>
             )}
+          </TouchableOpacity>
+          <TextInput style={styles.input} placeholder="GST number (optional)" autoCapitalize="characters" value={form.gstNumber} onChangeText={(v) => upd('gstNumber', v.toUpperCase())} />
+          <TextInput style={styles.input} placeholder="FSSAI license number (optional)" value={form.fssaiNumber} onChangeText={(v) => upd('fssaiNumber', v)} />
+          <TouchableOpacity style={styles.locButton} onPress={pickCertificate}>
+            <Text style={styles.locButtonText}>
+              {certFile?.uploading ? 'Uploading…' : certFile?.url ? '✓ FSSAI certificate added' : '📄 Add FSSAI certificate (optional)'}
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.button} onPress={doRegister} disabled={busy}>
             {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Register shop</Text>}

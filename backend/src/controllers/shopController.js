@@ -109,7 +109,7 @@ async function updateShop(req, res) {
   const shop = await Shop.findById(req.params.id);
   if (!shop) return res.status(404).json({ message: 'Shop not found' });
 
-  const { name, category, description, address, lat, lng, perKmRate, available } = req.body;
+  const { name, category, description, address, lat, lng, perKmRate, available, gstNumber, fssaiNumber, fssaiCertificateUrl } = req.body;
   if (name !== undefined) shop.name = name;
   if (category !== undefined) shop.category = category;
   if (description !== undefined) shop.description = description;
@@ -118,6 +118,9 @@ async function updateShop(req, res) {
   if (lng !== undefined) shop.location.lng = Number(lng);
   if (perKmRate !== undefined) shop.perKmRate = Number(perKmRate);
   if (available !== undefined) shop.available = available === 'true' || available === true;
+  if (gstNumber !== undefined) shop.gstNumber = gstNumber;
+  if (fssaiNumber !== undefined) shop.fssaiNumber = fssaiNumber;
+  if (fssaiCertificateUrl !== undefined) shop.fssaiCertificateUrl = fssaiCertificateUrl;
   if (req.file) shop.imageUrl = `/uploads/${req.file.filename}`;
 
   await shop.save();
@@ -131,17 +134,29 @@ async function deleteShop(req, res) {
 }
 
 // Quote the delivery fee from this shop to a given lat/lng, so the customer
-// sees the charge before placing the order.
+// sees the charge before placing the order. Falls back to geocoding a typed
+// address when lat/lng aren't available — e.g. a browser blocking GPS access
+// because the site isn't served over HTTPS (a plain-HTTP local address can
+// never get a location fix, no matter how many times the user allows it).
 async function deliveryQuote(req, res) {
-  const { lat, lng } = req.body;
-  if (typeof lat !== 'number' || typeof lng !== 'number') {
-    return res.status(400).json({ message: 'lat and lng must be numbers' });
+  let { lat, lng, address } = req.body;
+  const { isValidLatLng, geocode } = require('../utils/geo');
+  if (!isValidLatLng(lat, lng)) {
+    if (!address) {
+      return res.status(400).json({ message: 'lat/lng or an address is required' });
+    }
+    const place = await geocode(address);
+    if (!place) {
+      return res.status(400).json({ message: 'Could not find that address. Please try a fuller address (area, city).' });
+    }
+    lat = place.lat;
+    lng = place.lng;
   }
   const shop = await Shop.findById(req.params.id);
   if (!shop) return res.status(404).json({ message: 'Shop not found' });
 
   const { distanceKm, deliveryFee } = await computeDeliveryFee(shop.location, { lat, lng }, shop.perKmRate);
-  res.json({ distanceKm, deliveryFee, perKmRate: shop.perKmRate });
+  res.json({ distanceKm, deliveryFee, perKmRate: shop.perKmRate, lat, lng });
 }
 
 // Admin sets/extends a shop's subscription.

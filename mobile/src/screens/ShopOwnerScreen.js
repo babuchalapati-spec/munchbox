@@ -44,6 +44,7 @@ export default function ShopOwnerScreen({ navigation }) {
   const [topUp, setTopUp] = useState({ amount: '', reference: '', open: false, busy: false });
   const [editingItemId, setEditingItemId] = useState(null);
   const [editDraft, setEditDraft] = useState({ name: '', basePrice: '' });
+  const [editImage, setEditImage] = useState(null);
   const [brokenImages, setBrokenImages] = useState(() => new Set());
   const markBroken = (id) => setBrokenImages((prev) => new Set(prev).add(id));
 
@@ -254,6 +255,28 @@ export default function ShopOwnerScreen({ navigation }) {
   function startEditItem(item) {
     setEditingItemId(item._id);
     setEditDraft({ name: item.name, basePrice: String(item.basePrice) });
+    setEditImage(null);
+  }
+
+  function pickEditImage() {
+    Alert.alert('Item photo', 'Choose a source', [
+      { text: 'Camera', onPress: () => grabEditImage(launchCamera) },
+      { text: 'Gallery', onPress: () => grabEditImage(launchImageLibrary) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }
+
+  async function grabEditImage(launcher) {
+    const res = await launcher({ mediaType: 'photo', quality: 0.7 });
+    if (res.didCancel || !res.assets?.[0]) return;
+    setEditImage({ uri: res.assets[0].uri, uploading: true });
+    try {
+      const url = await uploadImage(res.assets[0]);
+      setEditImage({ uri: res.assets[0].uri, url });
+    } catch (err) {
+      setEditImage(null);
+      Alert.alert('Upload failed', 'Could not upload the photo. Try again.');
+    }
   }
 
   async function saveEditItem(itemId) {
@@ -263,10 +286,13 @@ export default function ShopOwnerScreen({ navigation }) {
     }
     setBusyId(itemId);
     try {
-      await updateProduct(itemId, { name: editDraft.name.trim(), basePrice: Number(editDraft.basePrice) });
+      const payload = { name: editDraft.name.trim(), basePrice: Number(editDraft.basePrice) };
+      if (editImage?.url) payload.imageUrl = editImage.url;
+      await updateProduct(itemId, payload);
       const refreshed = await listProducts(shopId);
       setProducts(refreshed || []);
       setEditingItemId(null);
+      setEditImage(null);
     } catch (err) {
       Alert.alert('Error', err.response?.data?.message || 'Could not save changes');
     } finally {
@@ -307,8 +333,8 @@ export default function ShopOwnerScreen({ navigation }) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Shop owner</Text>
-      <Text style={styles.subtitle}>{user?.name || 'Your shop'}</Text>
+      <Text style={styles.title}>{shop?.name || 'Shop owner'}</Text>
+      <Text style={styles.subtitle}>{user?.name}</Text>
 
       {shop?.deposit?.required && !shop.deposit.paid && (
         <View style={[styles.card, styles.depositCard]}>
@@ -448,6 +474,16 @@ export default function ShopOwnerScreen({ navigation }) {
             <View key={p._id} style={styles.addBox}>
               <TextInput style={styles.addInput} placeholder="Item name" value={editDraft.name} onChangeText={(v) => setEditDraft((d) => ({ ...d, name: v }))} />
               <TextInput style={styles.addInput} placeholder="Price ₹" keyboardType="number-pad" value={editDraft.basePrice} onChangeText={(v) => setEditDraft((d) => ({ ...d, basePrice: v.replace(/[^0-9]/g, '') }))} />
+              <TouchableOpacity style={styles.photoBox} onPress={pickEditImage}>
+                {editImage?.uri ? (
+                  <Image source={{ uri: editImage.uri }} style={styles.photoThumb} />
+                ) : p.imageUrl ? (
+                  <Image source={{ uri: imageUri(p.imageUrl) }} style={styles.photoThumb} />
+                ) : (
+                  <Text style={styles.photoPlus}>📷{'\n'}Photo</Text>
+                )}
+                {editImage?.uploading ? <ActivityIndicator style={styles.photoLoad} color={colors.primary} /> : null}
+              </TouchableOpacity>
               <View style={styles.addRow}>
                 <TouchableOpacity style={[styles.assignBtn, { flex: 1 }]} onPress={() => setEditingItemId(null)}>
                   <Text style={styles.assignBtnText}>Cancel</Text>

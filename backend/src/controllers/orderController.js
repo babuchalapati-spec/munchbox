@@ -287,9 +287,9 @@ async function computeOrderQuote(user, body) {
   if (!deliveryAddress || !phone) {
     throw err('deliveryAddress and phone are required', 400);
   }
-  if (!deliveryLocation || typeof deliveryLocation.lat !== 'number' || typeof deliveryLocation.lng !== 'number') {
-    throw err('deliveryLocation {lat, lng} is required for delivery pricing', 400);
-  }
+  // deliveryLocation is validated further down, once we can fall back to geocoding
+  // the typed address — GPS may be unavailable (e.g. a browser blocking location
+  // access because the site isn't served over HTTPS).
   if (!deliveryDate) throw err('deliveryDate is required', 400);
   const parsedDeliveryDate = new Date(deliveryDate);
   if (Number.isNaN(parsedDeliveryDate.getTime())) throw err('deliveryDate is invalid', 400);
@@ -374,17 +374,25 @@ async function computeOrderQuote(user, body) {
 
   // Guard against a shop (or customer) with a wrong location producing an absurd
   // distance and a runaway delivery fee — that once charged ₹109,313 for a biryani.
-  const { isValidLatLng } = require('../utils/geo');
+  const { isValidLatLng, geocode } = require('../utils/geo');
   if (!isValidLatLng(shop.location?.lat, shop.location?.lng)) {
     throw err('This shop has not set its location yet, so we cannot calculate delivery. Please try another shop.', 409, {
       shopUnavailable: true,
     });
   }
-  if (!isValidLatLng(deliveryLocation?.lat, deliveryLocation?.lng)) {
-    throw err('Please set a valid delivery location on the map.', 400);
+  let resolvedDeliveryLocation = deliveryLocation;
+  if (!isValidLatLng(resolvedDeliveryLocation?.lat, resolvedDeliveryLocation?.lng)) {
+    // GPS wasn't available on the client (e.g. a browser blocking location access
+    // because the site isn't served over HTTPS) — geocode the typed address instead,
+    // the same fallback shop registration already uses.
+    const place = await geocode(deliveryAddress);
+    if (!place) {
+      throw err('Could not find your delivery address on the map. Please enter a fuller address (area, city) or enable location.', 400);
+    }
+    resolvedDeliveryLocation = { lat: place.lat, lng: place.lng };
   }
 
-  const { distanceKm, deliveryFee } = await computeDeliveryFee(shop.location, deliveryLocation, shop.perKmRate);
+  const { distanceKm, deliveryFee } = await computeDeliveryFee(shop.location, resolvedDeliveryLocation, shop.perKmRate);
   if (distanceKm > MAX_DELIVERY_KM) {
     throw err(`This shop is too far from your address (${Math.round(distanceKm)} km) to deliver.`, 409, { tooFar: true });
   }
@@ -415,6 +423,7 @@ async function computeOrderQuote(user, body) {
     tipAmount,
     totalAmount,
     parsedDeliveryDate,
+    deliveryLocation: resolvedDeliveryLocation,
   };
 }
 
@@ -511,6 +520,7 @@ async function placeOrder(req, res) {
     tipAmount,
     totalAmount,
     parsedDeliveryDate,
+    deliveryLocation,
   } = quote;
 
   let paymentInfo = { method: 'COD', status: 'pending' };
@@ -586,7 +596,7 @@ async function placeOrder(req, res) {
     items: resolvedItems,
     deliveryAddress,
     phone,
-    deliveryLocation: req.body.deliveryLocation,
+    deliveryLocation,
     deliveryDate: parsedDeliveryDate,
     deliverySlot,
     paymentMethod: method,

@@ -18,6 +18,11 @@ const shopSchema = new mongoose.Schema(
     perKmRate: { type: Number, required: true, default: 12 },
     imageUrl: { type: String, default: '' },
     available: { type: Boolean, default: true },
+    // Indian food-business compliance — optional at registration (some categories,
+    // like courier-only shops, may not need FSSAI), verified by the admin later.
+    gstNumber: { type: String, default: '' },
+    fssaiNumber: { type: String, default: '' },
+    fssaiCertificateUrl: { type: String, default: '' },
     // Running average from customer order ratings (see Order.rating.shopStars).
     rating: {
       avg: { type: Number, default: 0 },

@@ -46,9 +46,30 @@ export default function Checkout() {
 
   const grandTotal = itemsTotal + (quote?.deliveryFee || 0) + tip;
 
+  // Browsers block GPS access on plain-HTTP, non-localhost addresses — which this app
+  // may be running on — so this quietly falls back to geocoding the typed address
+  // server-side instead of leaving the customer stuck with no way to check out.
+  async function quoteFromAddress() {
+    if (!deliveryAddress.trim()) {
+      setError('Type your delivery address first, or allow location access.');
+      return;
+    }
+    setLocating(true);
+    setError('');
+    try {
+      const {data} = await client.post(`/shops/${shop._id}/delivery-quote`, {address: deliveryAddress});
+      setQuote(data);
+      if (data.lat != null && data.lng != null) setLocation({lat: data.lat, lng: data.lng});
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not calculate delivery fee from that address.');
+    } finally {
+      setLocating(false);
+    }
+  }
+
   function useMyLocation() {
     if (!navigator.geolocation) {
-      setError('Location is not available in this browser.');
+      quoteFromAddress();
       return;
     }
     setLocating(true);
@@ -67,8 +88,9 @@ export default function Checkout() {
         }
       },
       () => {
-        setError('Location permission denied. Please allow it to calculate delivery.');
-        setLocating(false);
+        // Most likely GPS is blocked (insecure origin) rather than truly denied —
+        // fall back to the typed address instead of dead-ending the customer.
+        quoteFromAddress();
       }
     );
   }
@@ -88,7 +110,6 @@ export default function Checkout() {
 
   async function placeOrder() {
     if (!deliveryAddress || !phone) return setError('Delivery address and phone are required');
-    if (!location) return setError('Please set your delivery location to calculate the delivery charge.');
 
     setError('');
     setSubmitting(true);
@@ -162,8 +183,9 @@ export default function Checkout() {
         <textarea className="input" value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} rows={2} placeholder="Flat, street, city, pincode" />
 
         <button className="btn btn-outline" onClick={useMyLocation} disabled={locating} style={{marginBottom: 16}}>
-          {locating ? 'Locating…' : location ? '✓ Location set — tap to update' : '📍 Use my current location'}
+          {locating ? 'Calculating…' : quote ? '✓ Delivery fee calculated — tap to update' : '📍 Calculate delivery fee'}
         </button>
+        <p className="muted" style={{marginTop: -10, marginBottom: 16}}>Uses your location if allowed, otherwise your typed address above.</p>
 
         <label className="label">Phone</label>
         <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} />

@@ -42,7 +42,7 @@ export default function ShopDashboard() {
   const [newItem, setNewItem] = useState({name: '', category: 'Cake', basePrice: '', addOns: '', imageLink: '', imageFile: null});
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [editDraft, setEditDraft] = useState({name: '', basePrice: ''});
+  const [editDraft, setEditDraft] = useState({name: '', basePrice: '', imageLink: '', imageFile: null});
   const [savingEdit, setSavingEdit] = useState(false);
 
   const shopId = user?.shop?._id || user?.shop;
@@ -172,7 +172,12 @@ export default function ShopDashboard() {
 
   function startEdit(product) {
     setEditingId(product._id);
-    setEditDraft({name: product.name, basePrice: String(product.basePrice)});
+    setEditDraft({
+      name: product.name,
+      basePrice: String(product.basePrice),
+      imageLink: /^https?:\/\//i.test(product.imageUrl || '') ? product.imageUrl : '',
+      imageFile: null,
+    });
     setError('');
   }
 
@@ -184,7 +189,16 @@ export default function ShopDashboard() {
     setSavingEdit(true);
     setError('');
     try {
-      await client.put(`/products/${productId}`, {name: editDraft.name.trim(), basePrice: Number(editDraft.basePrice)});
+      const payload = {name: editDraft.name.trim(), basePrice: Number(editDraft.basePrice)};
+      if (editDraft.imageFile) {
+        const form = new FormData();
+        form.append('image', editDraft.imageFile);
+        const {data} = await client.post('/uploads', form, {headers: {'Content-Type': 'multipart/form-data'}, timeout: 120000});
+        payload.imageUrl = data.url;
+      } else if (editDraft.imageLink.trim()) {
+        payload.imageUrl = editDraft.imageLink.trim();
+      }
+      await client.put(`/products/${productId}`, payload);
       setEditingId(null);
       refresh();
     } catch (err) {
@@ -213,7 +227,7 @@ export default function ShopDashboard() {
   return (
     <div className="screen">
       <div className="top-bar">
-        <h2>🏪 {user?.name}</h2>
+        <h2>🏪 {shop?.name || user?.name}</h2>
         <button className="link" style={{margin: 0}} onClick={handleLogout}>Log out</button>
       </div>
       <div className="page-pad" style={{flex: 1}}>
@@ -328,6 +342,14 @@ export default function ShopDashboard() {
               <>
                 <input className="input" value={editDraft.name} onChange={(e) => setEditDraft((d) => ({...d, name: e.target.value}))} placeholder="Item name" />
                 <input className="input" value={editDraft.basePrice} onChange={(e) => setEditDraft((d) => ({...d, basePrice: e.target.value.replace(/[^0-9]/g, '')}))} placeholder="Price ₹" />
+                {p.imageUrl && (
+                  <div style={{width: 60, height: 60, borderRadius: 8, background: '#f6f3f0', overflow: 'hidden', marginBottom: 8}}>
+                    <img src={imageUri(p.imageUrl)} alt="" onError={(e) => { e.target.style.display = 'none'; }} style={{width: '100%', height: '100%', objectFit: 'cover'}} />
+                  </div>
+                )}
+                <label className="label">Change photo (optional)</label>
+                <input type="file" accept="image/*" onChange={(e) => setEditDraft((d) => ({...d, imageFile: e.target.files[0], imageLink: ''}))} style={{marginBottom: 12}} />
+                <input className="input" placeholder="Or paste a direct image URL (ends in .jpg/.png, not a webpage)" value={editDraft.imageLink} onChange={(e) => setEditDraft((d) => ({...d, imageLink: e.target.value, imageFile: null}))} />
                 <div style={{display: 'flex', gap: 8}}>
                   <button className="btn btn-outline" onClick={() => setEditingId(null)}>Cancel</button>
                   <button className="btn" onClick={() => saveEdit(p._id)} disabled={savingEdit}>{savingEdit ? 'Saving…' : 'Save'}</button>
