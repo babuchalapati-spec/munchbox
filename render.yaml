@@ -3,7 +3,9 @@ services:
     name: munchbox-backend
     runtime: node
     rootDir: backend
-    buildCommand: npm install
+    # Installs backend deps, then builds the PWA (customer/shop/delivery web app) so
+    # the backend can serve it as static files at the same URL — see server.js.
+    buildCommand: npm install && cd ../pwa && npm install && npm run build
     startCommand: npm start
     envVars:
       - key: MONGO_URI
