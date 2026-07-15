@@ -63,6 +63,20 @@ app.use('/api/geo', geoRoutes);
 app.use('/api/finance', financeRoutes);
 app.use('/api/payments', paymentRoutes);
 
+// Serves the customer PWA (installable web app) as static files, with an SPA fallback
+// so client-side routes like /orders/123 don't 404 on refresh. Built via `npm run
+// build` in ../pwa — this block is a no-op until that build exists.
+const pwaDist = path.join(__dirname, '..', '..', 'pwa', 'dist');
+if (fs.existsSync(pwaDist)) {
+  app.use(express.static(pwaDist));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/downloads')) {
+      return next();
+    }
+    res.sendFile(path.join(pwaDist, 'index.html'));
+  });
+}
+
 app.use(notFound);
 app.use(errorHandler);
 

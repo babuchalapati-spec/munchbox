@@ -7,6 +7,7 @@ import BottomTabNavigator from './BottomTabNavigator';
 
 import OtpLoginScreen from '../screens/OtpLoginScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
+import ServerSettingsScreen from '../screens/ServerSettingsScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import DeliveryRegisterScreen from '../screens/DeliveryRegisterScreen';
 import ShopLoginScreen from '../screens/ShopLoginScreen';
@@ -37,6 +38,7 @@ const authScreens = {
   Register: { component: RegisterScreen, title: 'Create account' },
   DeliveryRegister: { component: DeliveryRegisterScreen, title: 'Delivery partner' },
   ShopLogin: { component: ShopLoginScreen, headerShown: false },
+  ServerSettings: { component: ServerSettingsScreen, title: 'Server settings' },
 };
 
 const customerTabs = [

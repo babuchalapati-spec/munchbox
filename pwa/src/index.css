@@ -1,0 +1,226 @@
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #f6f3f0;
+  color: #2c2420;
+  /* Respects the iPhone notch/home-indicator safe areas when installed as a PWA */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+button, input, textarea, select {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.screen {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100%;
+  background: #f6f3f0;
+  display: flex;
+  flex-direction: column;
+}
+
+.page-pad {
+  padding: 16px;
+}
+
+.hero {
+  background: linear-gradient(135deg, #FF7A59 0%, #E23364 55%, #8E24AA 100%);
+  color: #fff;
+  padding: 40px 24px 32px;
+  text-align: center;
+  border-radius: 0 0 28px 28px;
+}
+
+.hero-logo {
+  width: 60px;
+  height: 60px;
+  border-radius: 30px;
+  background: rgba(255,255,255,0.22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  margin: 0 auto 10px;
+}
+
+.hero h1 {
+  font-size: 26px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.hero p {
+  font-size: 13px;
+  opacity: 0.92;
+  margin: 6px 0 0;
+}
+
+.card {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e6e0da;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.form-card {
+  flex: 1;
+  background: #fff;
+  border-radius: 28px 28px 0 0;
+  margin-top: -20px;
+  padding: 24px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2c2420;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.input, textarea.input {
+  width: 100%;
+  background: #f6f3f0;
+  border: 1px solid #e6e0da;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.btn {
+  background: #c2185b;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 14px;
+  font-weight: 700;
+  width: 100%;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+}
+
+.btn-outline {
+  background: transparent;
+  color: #c2185b;
+  border: 1px solid #c2185b;
+}
+
+.link {
+  color: #c2185b;
+  text-align: center;
+  display: block;
+  margin-top: 14px;
+  font-size: 13px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.muted {
+  color: #776b63;
+  font-size: 13px;
+}
+
+.error {
+  color: #c62828;
+  font-size: 13px;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.tab-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tab {
+  flex: 1;
+  border: 1px solid #e6e0da;
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+  background: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.tab.active {
+  border-color: #c2185b;
+  background: #c2185b;
+  color: #fff;
+}
+
+.bottom-nav {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  background: #fff;
+  border-top: 1px solid #e6e0da;
+  padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+}
+
+.bottom-nav a {
+  flex: 1;
+  text-align: center;
+  font-size: 11px;
+  color: #776b63;
+  padding: 4px 0;
+}
+
+.bottom-nav a.active {
+  color: #c2185b;
+  font-weight: 700;
+}
+
+.bottom-nav .icon {
+  display: block;
+  font-size: 20px;
+  margin-bottom: 2px;
+}
+
+.top-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: #fff;
+  border-bottom: 1px solid #e6e0da;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.top-bar h2 {
+  font-size: 16px;
+  margin: 0;
+  flex: 1;
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #2c2420;
+}

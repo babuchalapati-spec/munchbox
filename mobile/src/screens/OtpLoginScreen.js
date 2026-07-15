@@ -191,6 +191,10 @@ export default function OtpLoginScreen({navigation}) {
         </>
       )}
 
+        <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+          <Text style={styles.link}>New here? Create an account</Text>
+        </TouchableOpacity>
+
         <View style={styles.divider}>
           <Text style={styles.dividerText}>Not a customer?</Text>
         </View>
@@ -199,6 +203,10 @@ export default function OtpLoginScreen({navigation}) {
         </TouchableOpacity>
         <TouchableOpacity style={styles.roleBtn} onPress={() => navigation.navigate('ShopLogin')}>
           <Text style={styles.roleBtnText}>🏪  I'm a shop owner</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.serverLink} onPress={() => navigation.navigate('ServerSettings')}>
+          <Text style={styles.serverLinkText}>⚙ Server settings</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -281,6 +289,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   roleBtnText: {color: colors.text, fontWeight: '600'},
+  serverLink: {marginTop: 12, alignItems: 'center'},
+  serverLinkText: {color: colors.muted, fontSize: 11},
   info: {color: colors.text, marginBottom: 8},
   input: {
     backgroundColor: colors.card,
