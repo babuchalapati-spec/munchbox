@@ -15,6 +15,9 @@ const MIN_WALLET_BALANCE = 500;
 const MAX_DELIVERY_KM = 60;
 
 const AVAILABLE_STATUSES = ['placed', 'confirmed', 'baking', 'ready'];
+// A delivery partner only sees pickups within this radius of their current location —
+// no point showing a job 40km away they'd never realistically take.
+const MAX_PARTNER_RADIUS_KM = 15;
 
 // A delivery partner's wallet must stay at or above this to accept new deliveries —
 // same pattern as the shop's MIN_WALLET_BALANCE, scaled to a partner's smaller float.
@@ -59,13 +62,16 @@ async function listAvailableOrders(req, res) {
     .populate('shop', 'name location address')
     .sort({ createdAt: -1 });
 
-  const withDistance = orders.map((o) => {
+  let withDistance = orders.map((o) => {
     const p = pickupPointOf(o);
     const distanceToPickup = here && p ? Math.round(haversineKm(here, p) * 100) / 100 : null;
     return { order: o, distanceToPickup };
   });
 
   if (here) {
+    // Only orders with a known pickup point are radius-checked — one with no location
+    // yet (shouldn't normally happen) is left visible rather than silently hidden.
+    withDistance = withDistance.filter((w) => w.distanceToPickup == null || w.distanceToPickup <= MAX_PARTNER_RADIUS_KM);
     withDistance.sort((a, b) => {
       if (a.distanceToPickup == null) return 1;
       if (b.distanceToPickup == null) return -1;

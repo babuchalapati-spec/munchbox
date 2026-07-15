@@ -1,8 +1,12 @@
 const Shop = require('../models/Shop');
 const User = require('../models/User');
 const LedgerEntry = require('../models/LedgerEntry');
-const { computeDeliveryFee } = require('../utils/distance');
+const { computeDeliveryFee, haversineKm } = require('../utils/distance');
 const { isValidLatLng } = require('../utils/geo');
+
+// Customers only see shops within this radius of their location — no point showing
+// a cake shop 80km away that can't realistically deliver.
+const MAX_BROWSE_RADIUS_KM = 15;
 
 async function listShops(req, res) {
   const filter = {};
@@ -54,12 +58,14 @@ async function listShops(req, res) {
     const withDistance = shops.map((shop) => ({
       shop,
       distanceKm: shop.location && isValidLatLng(shop.location.lat, shop.location.lng)
-        ? Math.round(require('../utils/distance').haversineKm(shop.location, userLocation) * 100) / 100
+        ? Math.round(haversineKm(shop.location, userLocation) * 100) / 100
         : Number.POSITIVE_INFINITY,
     }));
 
     withDistance.sort((a, b) => a.distanceKm - b.distanceKm);
-    shops = withDistance.map(({ shop }) => shop);
+    // Only customers are radius-limited — admin (managing all shops) still sees everything.
+    const inRange = isAdmin ? withDistance : withDistance.filter((w) => w.distanceKm <= MAX_BROWSE_RADIUS_KM);
+    shops = inRange.map(({ shop, distanceKm }) => ({ ...shop.toObject(), distanceKm }));
   }
 
   res.json({ shops });

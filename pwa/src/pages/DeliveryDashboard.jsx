@@ -12,10 +12,24 @@ export default function DeliveryDashboard() {
   const [deliveryCodeInputs, setDeliveryCodeInputs] = useState({});
   const [error, setError] = useState('');
 
+  // Gets a location fix if the browser allows it (may silently fail on plain-HTTP,
+  // non-localhost origins — the backend just shows unfiltered results then).
+  function currentPosition() {
+    return new Promise((resolve) => {
+      if (!navigator.geolocation) return resolve(null);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({lat: pos.coords.latitude, lng: pos.coords.longitude}),
+        () => resolve(null),
+        {timeout: 8000}
+      );
+    });
+  }
+
   async function refresh() {
     try {
+      const here = await currentPosition();
       const [availableRes, assignedRes] = await Promise.all([
-        client.get('/orders/available'),
+        client.get('/orders/available', {params: here || {}}),
         client.get('/orders/assigned'),
       ]);
       setAvailable(availableRes.data.available);
