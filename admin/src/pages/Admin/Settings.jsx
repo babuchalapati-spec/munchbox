@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react';
-import { getSettings, publishApk, updateSettings } from '../../api/settings';
+import { getSettings, publishApk, updateSettings, testSms as testSmsApi } from '../../api/settings';
 
 export default function Settings() {
   const [sms, setSms] = useState({ provider: '', apiKey: '', apiSecret: '', senderId: '', enabled: false });
+  const [testPhone, setTestPhone] = useState('');
+  const [testingSms, setTestingSms] = useState(false);
+  const [testSmsResult, setTestSmsResult] = useState(null);
   const [app, setApp] = useState({ latestVersionCode: 1, latestVersionName: '1.0', apkUrl: '', updateMessage: '', mandatory: false });
   const [partnerApp, setPartnerApp] = useState({
     latestVersionCode: 1,
@@ -56,6 +59,23 @@ export default function Settings() {
   function changeShopApp(field, value) {
     setShopApp((a) => ({ ...a, [field]: value }));
     setSaved(false);
+  }
+
+  async function handleTestSms() {
+    if (!testPhone.trim()) {
+      setTestSmsResult({ ok: false, message: 'Enter a phone number to send the test to' });
+      return;
+    }
+    setTestingSms(true);
+    setTestSmsResult(null);
+    try {
+      const result = await testSmsApi({ phone: testPhone.trim(), ...sms });
+      setTestSmsResult({ ok: true, message: result.message });
+    } catch (err) {
+      setTestSmsResult({ ok: false, message: err.response?.data?.message || 'Could not send the test SMS' });
+    } finally {
+      setTestingSms(false);
+    }
   }
 
   async function handleSave(e) {
@@ -150,6 +170,25 @@ export default function Settings() {
           Sender ID
           <input value={sms.senderId} onChange={(e) => change('senderId', e.target.value)} placeholder="e.g. MUNCHB" />
         </label>
+
+        <div style={{ background: '#faf7f4', border: '1px solid var(--line)', borderRadius: 8, padding: '0.9rem', marginTop: 4 }}>
+          <label style={{ marginBottom: 8 }}>
+            Test this key by sending a real SMS
+            <input value={testPhone} onChange={(e) => setTestPhone(e.target.value)} placeholder="Phone number to send to, e.g. 9876543210" />
+          </label>
+          <button type="button" className="btn-outline" onClick={handleTestSms} disabled={testingSms}>
+            {testingSms ? 'Sending…' : '📨 Send test SMS'}
+          </button>
+          {testSmsResult && (
+            <p style={{ color: testSmsResult.ok ? '#2e7d32' : '#c62828', fontSize: '0.85rem', marginTop: 8, marginBottom: 0 }}>
+              {testSmsResult.ok ? '✅ ' : '❌ '}{testSmsResult.message}
+            </p>
+          )}
+          <p className="muted" style={{ marginTop: 6, marginBottom: 0 }}>
+            Tests the key/provider above directly — works even before you hit Save, so you can catch a wrong key
+            immediately instead of finding out when a customer's OTP doesn't arrive.
+          </p>
+        </div>
 
         <h2 style={{ marginTop: 24 }}>App auto-update</h2>
         <p className="muted">When you release a new APK, upload it to the server's downloads folder and bump these.</p>

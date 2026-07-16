@@ -82,4 +82,4 @@ async function sendSms(phone, message) {
   }
 }
 
-module.exports = { sendSms };
+module.exports = { sendSms, callProvider };

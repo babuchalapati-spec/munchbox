@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const Settings = require('../models/Settings');
+const { callProvider } = require('../utils/sms');
 
 async function getSettings(req, res) {
   const settings = await Settings.getSingleton();
@@ -82,6 +83,26 @@ async function updateSettings(req, res) {
   res.json({ settings });
 }
 
+// Sends one real SMS using whatever provider/key/sender is passed in — NOT necessarily
+// what's already saved, so the admin can test a key before committing to it (and catch
+// a typo'd key or wrong sender ID immediately instead of only discovering it when a
+// real customer's OTP silently fails to arrive).
+async function testSms(req, res) {
+  if (!req.user?.role || req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Only admins can send a test SMS' });
+  }
+  const { phone, provider, apiKey, apiSecret, senderId } = req.body;
+  if (!phone) return res.status(400).json({ message: 'Enter a phone number to send the test SMS to' });
+  if (!provider || !apiKey) return res.status(400).json({ message: 'Choose a provider and enter an API key first' });
+
+  try {
+    await callProvider({ provider, apiKey, apiSecret, senderId }, phone, 'Munchbox test SMS: your settings are working correctly.');
+    res.json({ sent: true, message: `Test SMS sent to ${phone}. Check that phone for the message.` });
+  } catch (err) {
+    res.status(400).json({ sent: false, message: err.message || 'Could not send the test SMS' });
+  }
+}
+
 function getPublicBaseUrl(req) {
   const configured = process.env.PUBLIC_BASE_URL || process.env.CLIENT_URL || `${req.protocol}://${req.get('host')}`;
   return String(configured).replace(/\/$/, '');
@@ -126,4 +147,4 @@ async function publishApk(req, res) {
   res.json({ settings, apkUrl: targetApp.apkUrl, fileName: targetName });
 }
 
-module.exports = { getSettings, getPaymentInfo, updateSettings, publishApk };
+module.exports = { getSettings, getPaymentInfo, updateSettings, publishApk, testSms };

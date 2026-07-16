@@ -16,3 +16,8 @@ export async function publishApk(formData) {
   });
   return data;
 }
+
+export async function testSms(payload) {
+  const { data } = await client.post('/settings/test-sms', payload);
+  return data;
+}
