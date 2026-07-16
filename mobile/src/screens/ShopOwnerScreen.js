@@ -39,7 +39,7 @@ export default function ShopOwnerScreen({ navigation }) {
   const [ledger, setLedger] = useState({ entries: [], balance: 0 });
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
-  const [newItem, setNewItem] = useState({ name: '', category: 'Cake', basePrice: '', addOns: '', image: null, imageLink: '', isVeg: true });
+  const [newItem, setNewItem] = useState({ name: '', category: 'Cake', basePrice: '', addOns: '', image: null, imageLink: '', isVeg: true, eggless: false, cakeType: 'Cake' });
   const [adding, setAdding] = useState(false);
   const [topUp, setTopUp] = useState({ amount: '', reference: '', open: false, busy: false });
   const [editingItemId, setEditingItemId] = useState(null);
@@ -119,6 +119,8 @@ export default function ShopOwnerScreen({ navigation }) {
         imageUrl: link || newItem.image?.url || '',
         addOns,
         isVeg: newItem.category === 'Cake' ? true : newItem.isVeg,
+        eggless: newItem.category === 'Cake' ? newItem.eggless : false,
+        cakeType: newItem.category === 'Cake' ? newItem.cakeType : 'Cake',
       });
       saved = true;
       if (created?._id) {
@@ -140,7 +142,7 @@ export default function ShopOwnerScreen({ navigation }) {
     // Only after a confirmed save: clear the form and refresh. A refresh problem must
     // never be reported as "could not add item" — the item is already saved.
     if (saved) {
-      setNewItem({ name: '', category: 'Cake', basePrice: '', addOns: '', image: null, imageLink: '', isVeg: true });
+      setNewItem({ name: '', category: 'Cake', basePrice: '', addOns: '', image: null, imageLink: '', isVeg: true, eggless: false, cakeType: 'Cake' });
       try {
         await load();
       } catch (err) {
@@ -255,7 +257,7 @@ export default function ShopOwnerScreen({ navigation }) {
 
   function startEditItem(item) {
     setEditingItemId(item._id);
-    setEditDraft({ name: item.name, basePrice: String(item.basePrice), isVeg: item.isVeg !== false });
+    setEditDraft({ name: item.name, basePrice: String(item.basePrice), isVeg: item.isVeg !== false, eggless: Boolean(item.eggless), cakeType: item.cakeType || 'Cake' });
     setEditImage(null);
   }
 
@@ -287,7 +289,7 @@ export default function ShopOwnerScreen({ navigation }) {
     }
     setBusyId(itemId);
     try {
-      const payload = { name: editDraft.name.trim(), basePrice: Number(editDraft.basePrice), isVeg: editDraft.isVeg };
+      const payload = { name: editDraft.name.trim(), basePrice: Number(editDraft.basePrice), isVeg: editDraft.isVeg, eggless: editDraft.eggless, cakeType: editDraft.cakeType };
       if (editImage?.url) payload.imageUrl = editImage.url;
       await updateProduct(itemId, payload);
       const refreshed = await listProducts(shopId);
@@ -459,6 +461,37 @@ export default function ShopOwnerScreen({ navigation }) {
               </TouchableOpacity>
             </View>
           )}
+          {newItem.category === 'Cake' && (
+            <View style={styles.addRow}>
+              <View style={styles.catPick}>
+                {['Cake', 'Pastry', 'Pudding', 'Other'].map((t) => (
+                  <TouchableOpacity
+                    key={t}
+                    style={[styles.catChip, newItem.cakeType === t && styles.catChipActive]}
+                    onPress={() => setNewItem((s) => ({ ...s, cakeType: t }))}
+                  >
+                    <Text style={[styles.catChipText, newItem.cakeType === t && styles.catChipTextActive]}>{t}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+          {newItem.category === 'Cake' && (
+            <View style={styles.addRow}>
+              <TouchableOpacity
+                style={[styles.catChip, !newItem.eggless && { backgroundColor: '#8d6e63', borderColor: '#8d6e63' }]}
+                onPress={() => setNewItem((s) => ({ ...s, eggless: false }))}
+              >
+                <Text style={[styles.catChipText, !newItem.eggless && styles.catChipTextActive]}>🥚 With egg</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.catChip, newItem.eggless && { backgroundColor: '#2e7d32', borderColor: '#2e7d32' }]}
+                onPress={() => setNewItem((s) => ({ ...s, eggless: true }))}
+              >
+                <Text style={[styles.catChipText, newItem.eggless && styles.catChipTextActive]}>🌱 Eggless</Text>
+              </TouchableOpacity>
+            </View>
+          )}
           <TextInput
             style={styles.addInput}
             placeholder="Or paste a direct image URL (ends in .jpg/.png, not a webpage)"
@@ -468,7 +501,11 @@ export default function ShopOwnerScreen({ navigation }) {
           />
           <TextInput
             style={styles.addInput}
-            placeholder="Toppings / add-ons (e.g. Extra cheese +40, Olives +20)"
+            placeholder={
+              newItem.category === 'Catering'
+                ? 'Curries (e.g. Dal +20, Rice +0, Sambar +15, Vankaya curry +25)'
+                : 'Toppings / add-ons (e.g. Extra cheese +40, Olives +20)'
+            }
             value={newItem.addOns}
             onChangeText={(v) => setNewItem((s) => ({ ...s, addOns: v }))}
           />
@@ -517,6 +554,37 @@ export default function ShopOwnerScreen({ navigation }) {
                   </TouchableOpacity>
                 </View>
               )}
+              {p.category === 'Cake' && (
+                <>
+                  <View style={styles.addRow}>
+                    <View style={styles.catPick}>
+                      {['Cake', 'Pastry', 'Pudding', 'Other'].map((t) => (
+                        <TouchableOpacity
+                          key={t}
+                          style={[styles.catChip, editDraft.cakeType === t && styles.catChipActive]}
+                          onPress={() => setEditDraft((d) => ({ ...d, cakeType: t }))}
+                        >
+                          <Text style={[styles.catChipText, editDraft.cakeType === t && styles.catChipTextActive]}>{t}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                  <View style={styles.addRow}>
+                    <TouchableOpacity
+                      style={[styles.catChip, !editDraft.eggless && { backgroundColor: '#8d6e63', borderColor: '#8d6e63' }]}
+                      onPress={() => setEditDraft((d) => ({ ...d, eggless: false }))}
+                    >
+                      <Text style={[styles.catChipText, !editDraft.eggless && styles.catChipTextActive]}>🥚 With egg</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.catChip, editDraft.eggless && { backgroundColor: '#2e7d32', borderColor: '#2e7d32' }]}
+                      onPress={() => setEditDraft((d) => ({ ...d, eggless: true }))}
+                    >
+                      <Text style={[styles.catChipText, editDraft.eggless && styles.catChipTextActive]}>🌱 Eggless</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
               <View style={styles.addRow}>
                 <TouchableOpacity style={[styles.assignBtn, { flex: 1 }]} onPress={() => setEditingItemId(null)}>
                   <Text style={styles.assignBtnText}>Cancel</Text>
@@ -534,8 +602,13 @@ export default function ShopOwnerScreen({ navigation }) {
                 <View style={[styles.itemThumb, styles.itemThumbEmpty]}><Text style={styles.itemThumbIcon}>🍽️</Text></View>
               )}
               <View style={{ flex: 1 }}>
-                <Text style={styles.itemName}>{p.category !== 'Cake' ? (p.isVeg !== false ? '🟢 ' : '🔴 ') : ''}{p.name}</Text>
-                <Text style={styles.itemMeta}>{p.category} · ₹{p.basePrice}{p.available ? '' : ' · out of stock'}</Text>
+                <Text style={styles.itemName}>
+                  {p.category !== 'Cake' ? (p.isVeg !== false ? '🟢 ' : '🔴 ') : (p.eggless ? '🌱 ' : '🥚 ')}
+                  {p.name}
+                </Text>
+                <Text style={styles.itemMeta}>
+                  {p.category === 'Cake' && p.cakeType && p.cakeType !== 'Cake' ? p.cakeType : p.category} · ₹{p.basePrice}{p.available ? '' : ' · out of stock'}
+                </Text>
                 {p.available ? null : (
                   <Text style={styles.pendingTag}>⏸️ Hidden from customers — turn it on to show it again</Text>
                 )}

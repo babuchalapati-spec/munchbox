@@ -23,6 +23,14 @@ export default function ProductDetail() {
   const [quantity, setQuantity] = useState(1);
   const [conflict, setConflict] = useState(null);
   const [validationError, setValidationError] = useState('');
+  // Catering thalis: customer picks which curries go in, each priced by the shop.
+  const [selectedCurries, setSelectedCurries] = useState([]);
+
+  function toggleCurry(addOn) {
+    setSelectedCurries((prev) =>
+      prev.some((c) => c.name === addOn.name) ? prev.filter((c) => c.name !== addOn.name) : [...prev, addOn]
+    );
+  }
 
   useEffect(() => {
     client.get(`/products/${id}`).then(({data}) => {
@@ -36,17 +44,21 @@ export default function ProductDetail() {
 
   const kind = customizationKind(product.category);
   const weightDelta = weight ? (product.weightOptions?.find((w) => w.label === weight)?.priceDelta || 0) : 0;
-  const unitPrice = product.basePrice + weightDelta;
+  const curriesTotal = kind === 'catering' ? selectedCurries.reduce((sum, c) => sum + (c.price || 0), 0) : 0;
+  const unitPrice = product.basePrice + weightDelta + curriesTotal;
   const outOfStock = !product.available;
 
   function buildItem() {
+    const extras = [];
+    if (kind === 'catering' && selectedCurries.length) extras.push(`Curries: ${selectedCurries.map((c) => c.name).join(', ')}`);
+    if (notes) extras.push(notes);
     return {
       product: product._id,
       name: product.name,
       weight: weight || undefined,
       flavor: kind === 'cake' ? flavor || undefined : undefined,
       messageOnCake: kind === 'cake' ? messageOnCake || undefined : undefined,
-      notes: notes || undefined,
+      notes: extras.length ? extras.join(' | ') : undefined,
       quantity,
       price: unitPrice,
     };
@@ -80,7 +92,11 @@ export default function ProductDetail() {
     <div className="screen">
       <div className="top-bar">
         <button className="back-btn" onClick={() => navigate(-1)}>←</button>
-        <h2>{kind !== 'cake' ? (product.isVeg !== false ? '🟢 ' : '🔴 ') : ''}{product.name}</h2>
+        <h2>
+          {kind === 'cake' ? (product.eggless ? '🌱 ' : '🥚 ') : (product.isVeg !== false ? '🟢 ' : '🔴 ')}
+          {product.name}
+          {kind === 'cake' && product.cakeType && product.cakeType !== 'Cake' ? ` (${product.cakeType})` : ''}
+        </h2>
       </div>
       <div className="page-pad" style={{flex: 1, paddingBottom: 90}}>
         {product.imageUrl && <img src={imageUri(product.imageUrl)} alt="" onError={(e) => { e.target.style.display = 'none'; }} style={{width: '100%', height: 200, objectFit: 'cover', borderRadius: 10, marginBottom: 16}} />}
@@ -109,6 +125,30 @@ export default function ProductDetail() {
           </>
         )}
         {validationError && <p className="error">{validationError}</p>}
+
+        {kind === 'catering' && product.addOns?.length > 0 && (
+          <>
+            <label className="label">🍛 Choose your curries</label>
+            {product.addOns.map((a) => {
+              const picked = selectedCurries.some((c) => c.name === a.name);
+              return (
+                <div
+                  key={a.name}
+                  onClick={() => toggleCurry(a)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+                    border: '1px solid #e6e0da', borderRadius: 8, padding: 10, marginBottom: 8,
+                    background: picked ? '#fdf1f4' : '#fff', borderColor: picked ? '#c2185b' : '#e6e0da',
+                  }}
+                >
+                  <span>{picked ? '☑️' : '⬜'}</span>
+                  <span style={{flex: 1, fontWeight: 600}}>{a.name}</span>
+                  {a.price > 0 && <span className="muted">+₹{a.price}</span>}
+                </div>
+              );
+            })}
+          </>
+        )}
 
         <label className="label">Notes (optional)</label>
         <textarea className="input" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />

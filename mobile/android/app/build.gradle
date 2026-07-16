@@ -79,8 +79,8 @@ android {
         applicationId "com.cakeapp.mobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 38
-        versionName "17.8.0"
+        versionCode 40
+        versionName "17.9.0"
     }
     signingConfigs {
         debug {

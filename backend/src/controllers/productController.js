@@ -78,7 +78,7 @@ async function createProduct(req, res) {
       message: 'Items are added by the shop itself. Ask the shop owner to add it from their shop login.',
     });
   }
-  const { name, description, category, basePrice, weightOptions, addOns, isCustomizable, available, imageUrl, isVeg } = req.body;
+  const { name, description, category, basePrice, weightOptions, addOns, isCustomizable, available, imageUrl, isVeg, eggless, cakeType } = req.body;
   const shop = req.user.shop;
   if (!shop || !name || !category || basePrice === undefined) {
     return res.status(400).json({ message: 'name, category and basePrice are required' });
@@ -95,6 +95,8 @@ async function createProduct(req, res) {
     isCustomizable: isCustomizable === 'true' || isCustomizable === true,
     available: available === undefined ? true : available === 'true' || available === true,
     isVeg: isVeg === undefined ? true : isVeg === 'true' || isVeg === true,
+    eggless: eggless === 'true' || eggless === true,
+    cakeType: cakeType || 'Cake',
     approved: true,
     blocked: false,
     // Image can come from an uploaded file (multipart) or a pre-uploaded URL (JSON body).
@@ -118,7 +120,7 @@ async function updateProduct(req, res) {
     return res.status(403).json({ message: 'You can only edit your own shop products' });
   }
 
-  const { shop, name, description, category, basePrice, weightOptions, addOns, isCustomizable, available, imageUrl, isVeg } = req.body;
+  const { shop, name, description, category, basePrice, weightOptions, addOns, isCustomizable, available, imageUrl, isVeg, eggless, cakeType } = req.body;
   // Only admins may move a product to another shop.
   if (shop !== undefined && req.user.role === 'admin') product.shop = shop;
   if (name !== undefined) product.name = name;
@@ -130,6 +132,8 @@ async function updateProduct(req, res) {
   if (isCustomizable !== undefined) product.isCustomizable = isCustomizable === 'true' || isCustomizable === true;
   if (available !== undefined) product.available = available === 'true' || available === true;
   if (isVeg !== undefined) product.isVeg = isVeg === 'true' || isVeg === true;
+  if (eggless !== undefined) product.eggless = eggless === 'true' || eggless === true;
+  if (cakeType !== undefined) product.cakeType = cakeType;
   if (req.file) product.imageUrl = `/uploads/${req.file.filename}`;
   else if (imageUrl !== undefined) product.imageUrl = imageUrl;
 

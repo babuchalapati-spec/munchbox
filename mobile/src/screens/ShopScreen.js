@@ -144,8 +144,11 @@ export default function ShopScreen({ route, navigation }) {
             activeOpacity={0.85}
           >
             <View style={styles.cardBody}>
-              <Text style={styles.cardTitle}>{item.category !== 'Cake' ? (item.isVeg !== false ? '🟢 ' : '🔴 ') : ''}{item.name}</Text>
-              <Text style={styles.cardMeta}>{item.category}</Text>
+              <Text style={styles.cardTitle}>
+                {item.category !== 'Cake' ? (item.isVeg !== false ? '🟢 ' : '🔴 ') : (item.eggless ? '🌱 ' : '🥚 ')}
+                {item.name}
+              </Text>
+              <Text style={styles.cardMeta}>{item.category === 'Cake' && item.cakeType && item.cakeType !== 'Cake' ? item.cakeType : item.category}</Text>
               {item.description ? (
                 <Text style={styles.cardDesc} numberOfLines={2}>
                   {item.description}

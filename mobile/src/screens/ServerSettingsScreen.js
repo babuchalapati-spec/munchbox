@@ -1,6 +1,6 @@
 import React, {useState} from 'react';
 import {View, Text, TextInput, TouchableOpacity, StyleSheet, Alert} from 'react-native';
-import {API_URL, DEFAULT_API_URL, setServerUrl, resetServerUrl} from '../api/client';
+import {API_URL, setServerUrl, resetServerUrl} from '../api/client';
 import {colors} from '../theme';
 
 // Lets whoever's setting up the app point it at a new server address (e.g. after the
@@ -29,15 +29,16 @@ export default function ServerSettingsScreen({navigation}) {
   async function reset() {
     const restored = await resetServerUrl();
     setValue(restored.replace('/api', ''));
-    Alert.alert('Reset', `Back to the address built into this app:\n${restored}`);
+    Alert.alert('Auto-detected', `Found a working server at:\n${restored}`);
   }
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Server settings</Text>
       <Text style={styles.body}>
-        This is the address the app uses to reach Munchbox's server. If your WiFi network changed and the app stopped
-        connecting, enter the new address below.
+        This is the address the app uses to reach Munchbox's server. The app automatically tries every address you've
+        used before each time it opens (e.g. home and office WiFi) — you only need to type a new one below the first
+        time you use a network it hasn't seen yet.
       </Text>
 
       <Text style={styles.label}>Server address</Text>
@@ -56,7 +57,7 @@ export default function ServerSettingsScreen({navigation}) {
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.resetButton} onPress={reset}>
-        <Text style={styles.resetButtonText}>Reset to built-in address ({DEFAULT_API_URL.replace('/api', '')})</Text>
+        <Text style={styles.resetButtonText}>Forget manual address & auto-detect again</Text>
       </TouchableOpacity>
     </View>
   );

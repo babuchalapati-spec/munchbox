@@ -88,7 +88,7 @@ export default function ShopDashboard() {
   const [topUpBusy, setTopUpBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [newItem, setNewItem] = useState({name: '', category: 'Cake', basePrice: '', addOns: '', imageLink: '', imageFile: null, isVeg: true});
+  const [newItem, setNewItem] = useState({name: '', category: 'Cake', basePrice: '', addOns: '', imageLink: '', imageFile: null, isVeg: true, eggless: false, cakeType: 'Cake'});
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editDraft, setEditDraft] = useState({name: '', basePrice: '', imageLink: '', imageFile: null});
@@ -178,8 +178,10 @@ export default function ShopDashboard() {
         imageUrl,
         addOns: parseAddOns(newItem.addOns),
         isVeg: newItem.category === 'Cake' ? true : newItem.isVeg,
+        eggless: newItem.category === 'Cake' ? newItem.eggless : false,
+        cakeType: newItem.category === 'Cake' ? newItem.cakeType : 'Cake',
       });
-      setNewItem({name: '', category: 'Cake', basePrice: '', addOns: '', imageLink: '', imageFile: null, isVeg: true});
+      setNewItem({name: '', category: 'Cake', basePrice: '', addOns: '', imageLink: '', imageFile: null, isVeg: true, eggless: false, cakeType: 'Cake'});
       setMessage('Item added and is now available to customers.');
       refresh();
     } catch (err) {
@@ -455,10 +457,28 @@ export default function ShopDashboard() {
               <button type="button" className={`tab ${!newItem.isVeg ? 'active' : ''}`} style={!newItem.isVeg ? {background: '#c62828'} : undefined} onClick={() => setNewItem((s) => ({...s, isVeg: false}))}>🔴 Non-veg</button>
             </div>
           )}
+          {newItem.category === 'Cake' && (
+            <div className="tab-row">
+              {['Cake', 'Pastry', 'Pudding', 'Other'].map((t) => (
+                <button key={t} type="button" className={`tab ${newItem.cakeType === t ? 'active' : ''}`} onClick={() => setNewItem((s) => ({...s, cakeType: t}))}>{t}</button>
+              ))}
+            </div>
+          )}
+          {newItem.category === 'Cake' && (
+            <div className="tab-row">
+              <button type="button" className={`tab ${!newItem.eggless ? 'active' : ''}`} onClick={() => setNewItem((s) => ({...s, eggless: false}))}>🥚 With egg</button>
+              <button type="button" className={`tab ${newItem.eggless ? 'active' : ''}`} style={newItem.eggless ? {background: '#2e7d32'} : undefined} onClick={() => setNewItem((s) => ({...s, eggless: true}))}>🌱 Eggless</button>
+            </div>
+          )}
           <label className="label">Photo (optional)</label>
           <input type="file" accept="image/*" onChange={(e) => setNewItem((s) => ({...s, imageFile: e.target.files[0], imageLink: ''}))} style={{marginBottom: 12}} />
           <input className="input" placeholder="Or paste a direct image URL (must end in .jpg/.png, not a webpage)" value={newItem.imageLink} onChange={(e) => setNewItem((s) => ({...s, imageLink: e.target.value, imageFile: null}))} />
-          <input className="input" placeholder="Toppings / add-ons (e.g. Extra cheese +40, Olives +20)" value={newItem.addOns} onChange={(e) => setNewItem((s) => ({...s, addOns: e.target.value}))} />
+          <input
+            className="input"
+            placeholder={newItem.category === 'Catering' ? 'Curries (e.g. Dal +20, Rice +0, Sambar +15, Vankaya curry +25)' : 'Toppings / add-ons (e.g. Extra cheese +40, Olives +20)'}
+            value={newItem.addOns}
+            onChange={(e) => setNewItem((s) => ({...s, addOns: e.target.value}))}
+          />
           <input className="input" placeholder="Price ₹" value={newItem.basePrice} onChange={(e) => setNewItem((s) => ({...s, basePrice: e.target.value.replace(/[^0-9]/g, '')}))} />
           <button className="btn" onClick={addItem} disabled={adding}>{adding ? 'Adding…' : '+ Add item'}</button>
         </div>
@@ -496,7 +516,13 @@ export default function ShopDashboard() {
                     <div style={{width: 48, height: 48, borderRadius: 8, background: '#f6f3f0', flexShrink: 0, overflow: 'hidden'}}>
                       {p.imageUrl && <img src={imageUri(p.imageUrl)} alt="" onError={(e) => { e.target.style.display = 'none'; }} style={{width: '100%', height: '100%', objectFit: 'cover'}} />}
                     </div>
-                    <div><strong>{p.category !== 'Cake' ? (p.isVeg !== false ? '🟢 ' : '🔴 ') : ''}{p.name}</strong><br /><span className="muted">₹{p.basePrice}</span></div>
+                    <div>
+                      <strong>
+                        {p.category !== 'Cake' ? (p.isVeg !== false ? '🟢 ' : '🔴 ') : (p.eggless ? '🌱 ' : '🥚 ')}
+                        {p.name}
+                      </strong>
+                      <br /><span className="muted">₹{p.basePrice}{p.category === 'Cake' && p.cakeType && p.cakeType !== 'Cake' ? ` · ${p.cakeType}` : ''}</span>
+                    </div>
                   </div>
                   <button className="btn" style={{width: 'auto', flex: '0 0 auto', padding: '8px 12px', background: p.available ? '#2e7d32' : '#c62828'}} onClick={() => toggleStock(p)}>
                     {p.available ? '✅ In stock' : '⏸️ Out of stock'}

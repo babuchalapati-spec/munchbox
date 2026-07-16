@@ -40,9 +40,19 @@ export default function ProductDetailScreen({ route, navigation }) {
   const [notes, setNotes] = useState('');
   const [imageBroken, setImageBroken] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  // Catering thalis: customer picks which curries go in (dal, rice, sambar...), each
+  // priced separately by the shop via the same add-ons the shop already enters.
+  const [selectedCurries, setSelectedCurries] = useState([]);
+
+  function toggleCurry(addOn) {
+    setSelectedCurries((prev) =>
+      prev.some((c) => c.name === addOn.name) ? prev.filter((c) => c.name !== addOn.name) : [...prev, addOn]
+    );
+  }
 
   const weightDelta = product.weightOptions?.find((w) => w.label === weight)?.priceDelta || 0;
-  const unitPrice = product.basePrice + weightDelta;
+  const curriesTotal = isCatering ? selectedCurries.reduce((sum, c) => sum + (c.price || 0), 0) : 0;
+  const unitPrice = product.basePrice + weightDelta + curriesTotal;
 
   function buildItem() {
     // Fold category-specific choices into the order so the shop sees them.
@@ -50,6 +60,7 @@ export default function ProductDetailScreen({ route, navigation }) {
     if (isRestaurant && spice) extras.push(`Spice: ${spice}`);
     if (isRestaurant && addOns) extras.push(`Add-ons: ${addOns}`);
     if (isCatering && headcount) extras.push(`For ${headcount} people`);
+    if (isCatering && selectedCurries.length) extras.push(`Curries: ${selectedCurries.map((c) => c.name).join(', ')}`);
     if (notes) extras.push(notes);
     return {
       product: product._id,
@@ -109,7 +120,11 @@ export default function ProductDetailScreen({ route, navigation }) {
       {product.imageUrl && !imageBroken ? (
         <Image source={{ uri: imageUri(product.imageUrl) }} style={styles.image} onError={() => setImageBroken(true)} />
       ) : null}
-      <Text style={styles.title}>{!isCake ? (product.isVeg !== false ? '🟢 ' : '🔴 ') : ''}{product.name}</Text>
+      <Text style={styles.title}>
+        {isCake ? (product.eggless ? '🌱 ' : '🥚 ') : (product.isVeg !== false ? '🟢 ' : '🔴 ')}
+        {product.name}
+        {isCake && product.cakeType && product.cakeType !== 'Cake' ? ` (${product.cakeType})` : ''}
+      </Text>
       <Text style={styles.description}>{product.description}</Text>
       {outOfStock && (
         <Text style={styles.outOfStockBanner}>⏸️ Currently out of stock at this shop</Text>
@@ -196,6 +211,25 @@ export default function ProductDetailScreen({ route, navigation }) {
               onChangeText={(v) => setHeadcount(v.replace(/[^0-9]/g, ''))}
             />
           </View>
+          {product.addOns?.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.label}>🍛 Choose your curries</Text>
+              {product.addOns.map((a) => {
+                const picked = selectedCurries.some((c) => c.name === a.name);
+                return (
+                  <TouchableOpacity
+                    key={a.name}
+                    style={[styles.curryRow, picked && { borderColor: theme.primary, backgroundColor: theme.soft }]}
+                    onPress={() => toggleCurry(a)}
+                  >
+                    <Text style={styles.curryCheck}>{picked ? '☑️' : '⬜'}</Text>
+                    <Text style={styles.curryName}>{a.name}</Text>
+                    {a.price > 0 && <Text style={styles.curryPrice}>+₹{a.price}</Text>}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
           <TouchableOpacity
             style={[styles.quoteBtn, { borderColor: theme.primary }]}
             onPress={() => navigation.navigate('CateringRequest', { shop })}
@@ -268,6 +302,18 @@ const styles = StyleSheet.create({
   input: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 10 },
   cateringBanner: { borderRadius: 10, padding: 12, marginBottom: 16 },
   cateringText: { fontSize: 13, lineHeight: 18, fontWeight: '600' },
+  curryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 8,
+  },
+  curryCheck: { fontSize: 16, marginRight: 8 },
+  curryName: { flex: 1, color: colors.text, fontWeight: '600' },
+  curryPrice: { color: colors.muted, fontWeight: '600' },
   quoteBtn: { borderWidth: 1, borderRadius: 8, padding: 12, alignItems: 'center', marginBottom: 16 },
   quoteBtnText: { fontWeight: '700' },
   bottomBar: {

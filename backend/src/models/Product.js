@@ -31,6 +31,9 @@ const productSchema = new mongoose.Schema(
     // Veg/non-veg tag — shown as a badge and used to filter restaurant/catering menus.
     // Cakes/bakery items generally leave this at the default (veg).
     isVeg: { type: Boolean, default: true },
+    // Cake-only attributes: whether it contains egg, and which kind of bake it is.
+    eggless: { type: Boolean, default: false },
+    cakeType: { type: String, enum: ['Cake', 'Pastry', 'Pudding', 'Other'], default: 'Cake' },
     // New items stay hidden until an admin approves them.
     approved: { type: Boolean, default: false },
     // The shop's own in-stock switch — the only thing that decides if customers can order it.
