@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { listDeliveryAccounts, createDeliveryAccount, reviewKyc } from '../../api/delivery';
+import { API_ORIGIN } from '../../api/client';
 
 const emptyForm = { name: '', email: '', password: '', phone: '' };
-const API_ORIGIN = (import.meta.env.VITE_API_URL || 'http://localhost:5001/api').replace('/api', '');
 
 const KYC_LABEL = { pending: 'Pending review', verified: 'Verified', rejected: 'Rejected' };
 const KYC_COLOR = { pending: '#a86b00', verified: '#2e7d32', rejected: '#c62828' };

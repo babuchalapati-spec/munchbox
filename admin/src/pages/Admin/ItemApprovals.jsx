@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { listPendingProducts, reviewProduct } from '../../api/products';
-
-const API_ORIGIN = (import.meta.env.VITE_API_URL || 'http://localhost:5001/api').replace('/api', '');
+import { API_ORIGIN } from '../../api/client';
 
 // Item images may be a local upload (/uploads/x.jpg) or an online link (https://...).
 function imageSrc(url) {

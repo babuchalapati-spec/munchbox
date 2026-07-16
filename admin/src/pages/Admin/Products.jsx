@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { listProducts, createProduct, updateProduct, deleteProduct, setProductBlocked } from '../../api/products';
 import { listShops } from '../../api/shops';
 import { useAuth } from '../../context/AuthContext';
+import { API_ORIGIN } from '../../api/client';
 
 const emptyForm = {
   name: '',
@@ -12,8 +13,6 @@ const emptyForm = {
   available: true,
   image: null,
 };
-
-const API_ORIGIN = (import.meta.env.VITE_API_URL || 'http://localhost:5001/api').replace('/api', '');
 
 // An item photo is either a local upload (/uploads/x.jpg) or a pasted online link.
 function imageSrc(url) {

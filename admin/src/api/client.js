@@ -1,7 +1,19 @@
 import axios from 'axios';
 
+// A hardcoded "localhost" only works when the admin dashboard is opened on the exact
+// machine running the backend. Opened from any other device (a phone on the same WiFi,
+// say) "localhost" would resolve to THAT device instead — so unless an explicit
+// VITE_API_URL override is set, derive the backend address from whatever host the
+// admin page itself was loaded from.
+const explicitApiUrl = import.meta.env.VITE_API_URL;
+export const API_BASE_URL =
+  explicitApiUrl && !explicitApiUrl.includes('localhost')
+    ? explicitApiUrl
+    : `${window.location.protocol}//${window.location.hostname}:5001/api`;
+export const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+
 const client = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5001/api',
+  baseURL: API_BASE_URL,
 });
 
 client.interceptors.request.use((config) => {
