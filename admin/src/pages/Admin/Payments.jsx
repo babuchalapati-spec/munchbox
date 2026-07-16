@@ -101,20 +101,41 @@ export default function Payments() {
     }
   }
 
-  if (loading) return <p>Loading payments...</p>;
+  if (loading) return <p className="muted">Loading payments…</p>;
+
+  const totalToReview = failures.length + pendingUpiOrders.length + pending.length;
 
   return (
     <div>
-      <h1>Payments & deposits</h1>
-      {error && <p style={{ color: '#c62828' }}>{error}</p>}
-      {msg && <p style={{ color: '#2e7d32' }}>{msg}</p>}
+      <h1>Payments &amp; deposits</h1>
+      {error && <p className="error" style={{ marginBottom: 16 }}>{error}</p>}
+      {msg && <p style={{ color: '#2e7d32', fontWeight: 600, marginBottom: 16 }}>✅ {msg}</p>}
+
+      <div className="dash-stats" style={{ marginBottom: 24 }}>
+        <div className="stat-tile" style={{ cursor: 'default' }}>
+          <span className="stat-num">{totalToReview}</span>
+          <span className="stat-label">Total needing review</span>
+        </div>
+        <div className="stat-tile" style={{ cursor: 'default' }}>
+          <span className="stat-num" style={{ color: failures.length ? '#c62828' : '#2e7d32' }}>{failures.length}</span>
+          <span className="stat-label">Failed payments</span>
+        </div>
+        <div className="stat-tile" style={{ cursor: 'default' }}>
+          <span className="stat-num">{pendingUpiOrders.length}</span>
+          <span className="stat-label">Customer UPI to confirm</span>
+        </div>
+        <div className="stat-tile" style={{ cursor: 'default' }}>
+          <span className="stat-num">{pending.length}</span>
+          <span className="stat-label">Shop/partner top-ups</span>
+        </div>
+      </div>
 
       {failures.length > 0 && (
-        <div style={{ background: '#fdecea', border: '1px solid #c62828', borderRadius: 8, padding: 16, marginBottom: 24 }}>
-          <h2 style={{ marginTop: 0, color: '#c62828' }}>⚠️ {failures.length} customer payment{failures.length > 1 ? 's' : ''} failed</h2>
-          <table width="100%" cellPadding="8" style={{ borderCollapse: 'collapse' }}>
+        <div className="card" style={{ borderColor: '#f3c6c2', background: '#fdecea' }}>
+          <h2 style={{ color: '#c62828' }}>⚠️ {failures.length} customer payment{failures.length > 1 ? 's' : ''} failed</h2>
+          <table className="table">
             <thead>
-              <tr style={{ textAlign: 'left', borderBottom: '2px solid #f3c6c2' }}>
+              <tr>
                 <th>Customer</th>
                 <th>Amount</th>
                 <th>Reason</th>
@@ -124,16 +145,16 @@ export default function Payments() {
             </thead>
             <tbody>
               {failures.map((f) => (
-                <tr key={f._id} style={{ borderBottom: '1px solid #f3c6c2' }}>
+                <tr key={f._id}>
                   <td>
                     <strong>{f.user?.name || '—'}</strong>
-                    <div style={{ color: '#776b63', fontSize: '0.8rem' }}>{f.user?.phone || f.user?.email}</div>
+                    <div className="muted">{f.user?.phone || f.user?.email}</div>
                   </td>
                   <td style={{ fontWeight: 700 }}>₹{f.amount}</td>
                   <td>{f.reason || '—'}</td>
-                  <td style={{ color: '#776b63', fontSize: '0.85rem' }}>{new Date(f.createdAt).toLocaleString()}</td>
+                  <td className="muted">{new Date(f.createdAt).toLocaleString()}</td>
                   <td>
-                    <button onClick={() => resolveFailure(f._id)} disabled={busyId === f._id}>
+                    <button className="btn-outline" onClick={() => resolveFailure(f._id)} disabled={busyId === f._id}>
                       Mark resolved
                     </button>
                   </td>
@@ -144,155 +165,163 @@ export default function Payments() {
         </div>
       )}
 
-      <h2 style={{ marginTop: 16 }}>Customer UPI payments to confirm ({pendingUpiOrders.length})</h2>
-      <p style={{ color: '#776b63' }}>
-        A customer paid by UPI at checkout and submitted a reference. Check the money arrived, then confirm — the shop
-        won't see this order as paid until you do.
-      </p>
-      {pendingUpiOrders.length === 0 ? (
-        <p style={{ color: '#2e7d32', fontWeight: 600 }}>✅ No customer UPI payments waiting.</p>
-      ) : (
-        <table width="100%" cellPadding="8" style={{ borderCollapse: 'collapse', marginBottom: 24 }}>
-          <thead>
-            <tr style={{ textAlign: 'left', borderBottom: '2px solid #e6e0da' }}>
-              <th>Customer</th>
-              <th>Shop</th>
-              <th>Amount</th>
-              <th>UPI reference</th>
-              <th>Placed</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pendingUpiOrders.map((o) => (
-              <tr key={o._id} style={{ borderBottom: '1px solid #e6e0da' }}>
-                <td>
-                  <strong>{o.user?.name || '—'}</strong>
-                  <div style={{ color: '#776b63', fontSize: '0.8rem' }}>{o.user?.phone}</div>
-                </td>
-                <td>{o.shop?.name || '—'}</td>
-                <td style={{ fontWeight: 700 }}>₹{o.totalAmount}</td>
-                <td>{o.payment?.upiReference || '—'}</td>
-                <td style={{ color: '#776b63', fontSize: '0.85rem' }}>{new Date(o.createdAt).toLocaleString()}</td>
-                <td style={{ whiteSpace: 'nowrap' }}>
-                  <button onClick={() => decideUpiOrder(o._id, 'confirm')} disabled={busyId === o._id} style={{ background: '#2e7d32', color: '#fff', marginRight: 6 }}>
-                    Confirm
-                  </button>
-                  <button onClick={() => decideUpiOrder(o._id, 'reject')} disabled={busyId === o._id} style={{ background: '#c62828', color: '#fff' }}>
-                    Reject
-                  </button>
-                </td>
+      <div className="card">
+        <h2>💳 Customer UPI payments to confirm ({pendingUpiOrders.length})</h2>
+        <p className="muted" style={{ marginTop: -6 }}>
+          A customer paid by UPI at checkout and submitted a reference. Check the money arrived, then confirm — the shop
+          won't see this order as paid until you do.
+        </p>
+        {pendingUpiOrders.length === 0 ? (
+          <p style={{ color: '#2e7d32', fontWeight: 600 }}>✅ No customer UPI payments waiting.</p>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th>Shop</th>
+                <th>Amount</th>
+                <th>UPI reference</th>
+                <th>Placed</th>
+                <th>Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+            </thead>
+            <tbody>
+              {pendingUpiOrders.map((o) => (
+                <tr key={o._id}>
+                  <td>
+                    <strong>{o.user?.name || '—'}</strong>
+                    <div className="muted">{o.user?.phone}</div>
+                  </td>
+                  <td>{o.shop?.name || '—'}</td>
+                  <td style={{ fontWeight: 700 }}>₹{o.totalAmount}</td>
+                  <td>{o.payment?.upiReference || '—'}</td>
+                  <td className="muted">{new Date(o.createdAt).toLocaleString()}</td>
+                  <td>
+                    <div className="row-actions">
+                      <button onClick={() => decideUpiOrder(o._id, 'confirm')} disabled={busyId === o._id} style={{ background: '#2e7d32' }}>
+                        Confirm
+                      </button>
+                      <button onClick={() => decideUpiOrder(o._id, 'reject')} disabled={busyId === o._id} style={{ background: '#c62828' }}>
+                        Reject
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
 
-      <h2 style={{ marginTop: 16 }}>Recent online payments (customers)</h2>
-      {recentOrders.length === 0 ? (
-        <p style={{ color: '#776b63' }}>No online payments yet.</p>
-      ) : (
-        <table width="100%" cellPadding="8" style={{ borderCollapse: 'collapse', marginBottom: 24 }}>
-          <thead>
-            <tr style={{ textAlign: 'left', borderBottom: '2px solid #e6e0da' }}>
-              <th>Customer</th>
-              <th>Shop</th>
-              <th>Amount</th>
-              <th>Status</th>
-              <th>Placed</th>
-            </tr>
-          </thead>
-          <tbody>
-            {recentOrders.map((o) => (
-              <tr key={o._id} style={{ borderBottom: '1px solid #e6e0da' }}>
-                <td>{o.user?.name || '—'}</td>
-                <td>{o.shop?.name || '—'}</td>
-                <td style={{ fontWeight: 700 }}>₹{o.totalAmount}</td>
-                <td style={{ color: o.payment?.status === 'paid' ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
-                  {o.payment?.status === 'paid' ? '✅ Paid' : o.payment?.status || 'pending'}
-                </td>
-                <td style={{ color: '#776b63', fontSize: '0.85rem' }}>{new Date(o.createdAt).toLocaleString()}</td>
+      <div className="card">
+        <h2>🏪 Shop/partner top-ups to confirm ({pending.length})</h2>
+        <p className="muted" style={{ marginTop: -6 }}>
+          A shop/partner paid by UPI and submitted the reference. Check the money arrived, then confirm — the balance is
+          credited only after you confirm.
+        </p>
+        {pending.length === 0 ? (
+          <p style={{ color: '#2e7d32', fontWeight: 600 }}>✅ No payments waiting.</p>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Who</th>
+                <th>Role</th>
+                <th>Amount</th>
+                <th>UPI reference</th>
+                <th>Submitted</th>
+                <th>Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+            </thead>
+            <tbody>
+              {pending.map((e) => (
+                <tr key={e._id}>
+                  <td>
+                    <strong>{e.owner?.name || '—'}</strong>
+                    <div className="muted">{e.owner?.email || e.owner?.phone}</div>
+                  </td>
+                  <td style={{ textTransform: 'capitalize' }}>{e.ownerRole}</td>
+                  <td style={{ fontWeight: 700, color: '#2e7d32' }}>₹{e.amount}</td>
+                  <td>{e.metadata?.reference || '—'}</td>
+                  <td className="muted">{new Date(e.createdAt).toLocaleString()}</td>
+                  <td>
+                    <div className="row-actions">
+                      <button onClick={() => decide(e._id, 'confirm')} disabled={busyId === e._id} style={{ background: '#2e7d32' }}>
+                        Confirm &amp; credit
+                      </button>
+                      <button onClick={() => decide(e._id, 'reject')} disabled={busyId === e._id} style={{ background: '#c62828' }}>
+                        Reject
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
 
-      <h2 style={{ marginTop: 16 }}>Your UPI ID (where shops send money)</h2>
-      <form onSubmit={saveUpi} style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 24 }}>
-        <label>
-          UPI ID
-          <input
-            value={upi.upiId}
-            onChange={(e) => setUpi((s) => ({ ...s, upiId: e.target.value }))}
-            placeholder="munchbox@okhdfcbank"
-          />
-        </label>
-        <label>
-          Payee name
-          <input value={upi.payeeName} onChange={(e) => setUpi((s) => ({ ...s, payeeName: e.target.value }))} />
-        </label>
-        <label>
-          Contact phone
-          <input value={upi.phone} onChange={(e) => setUpi((s) => ({ ...s, phone: e.target.value }))} />
-        </label>
-        <button type="submit" disabled={savingUpi}>{savingUpi ? 'Saving...' : 'Save UPI'}</button>
-      </form>
-
-      <h2>Pending payments to confirm ({pending.length})</h2>
-      <p style={{ color: '#776b63' }}>
-        A shop/partner paid by UPI and submitted the reference. Check the money arrived, then confirm — the balance is
-        credited only after you confirm.
-      </p>
-
-      {pending.length === 0 ? (
-        <p style={{ color: '#2e7d32', fontWeight: 600 }}>✅ No payments waiting.</p>
-      ) : (
-        <table width="100%" cellPadding="8" style={{ borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ textAlign: 'left', borderBottom: '2px solid #e6e0da' }}>
-              <th>Who</th>
-              <th>Role</th>
-              <th>Amount</th>
-              <th>UPI reference</th>
-              <th>Submitted</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pending.map((e) => (
-              <tr key={e._id} style={{ borderBottom: '1px solid #e6e0da' }}>
-                <td>
-                  <strong>{e.owner?.name || '—'}</strong>
-                  <div style={{ color: '#776b63', fontSize: '0.8rem' }}>{e.owner?.email || e.owner?.phone}</div>
-                </td>
-                <td>{e.ownerRole}</td>
-                <td style={{ fontWeight: 700, color: '#2e7d32' }}>₹{e.amount}</td>
-                <td>{e.metadata?.reference || '—'}</td>
-                <td style={{ color: '#776b63', fontSize: '0.85rem' }}>
-                  {new Date(e.createdAt).toLocaleString()}
-                </td>
-                <td style={{ whiteSpace: 'nowrap' }}>
-                  <button
-                    onClick={() => decide(e._id, 'confirm')}
-                    disabled={busyId === e._id}
-                    style={{ background: '#2e7d32', color: '#fff', marginRight: 6 }}
-                  >
-                    Confirm & credit
-                  </button>
-                  <button
-                    onClick={() => decide(e._id, 'reject')}
-                    disabled={busyId === e._id}
-                    style={{ background: '#c62828', color: '#fff' }}
-                  >
-                    Reject
-                  </button>
-                </td>
+      <div className="card">
+        <h2>📜 Recent online payments (customers)</h2>
+        {recentOrders.length === 0 ? (
+          <p className="muted">No online payments yet.</p>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Customer</th>
+                <th>Shop</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Placed</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+            </thead>
+            <tbody>
+              {recentOrders.map((o) => (
+                <tr key={o._id}>
+                  <td>{o.user?.name || '—'}</td>
+                  <td>{o.shop?.name || '—'}</td>
+                  <td style={{ fontWeight: 700 }}>₹{o.totalAmount}</td>
+                  <td>
+                    <span
+                      className="status-badge"
+                      style={o.payment?.status === 'paid' ? { background: '#d4edda', color: '#1e6b32' } : { background: '#f8d7da', color: '#a52834' }}
+                    >
+                      {o.payment?.status === 'paid' ? '✅ Paid' : o.payment?.status || 'pending'}
+                    </span>
+                  </td>
+                  <td className="muted">{new Date(o.createdAt).toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="card" style={{ maxWidth: 520 }}>
+        <h2>🏦 Your UPI ID (where shops send money)</h2>
+        <form onSubmit={saveUpi} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <label>
+            UPI ID
+            <input
+              value={upi.upiId}
+              onChange={(e) => setUpi((s) => ({ ...s, upiId: e.target.value }))}
+              placeholder="munchbox@okhdfcbank"
+            />
+          </label>
+          <label>
+            Payee name
+            <input value={upi.payeeName} onChange={(e) => setUpi((s) => ({ ...s, payeeName: e.target.value }))} />
+          </label>
+          <label>
+            Contact phone
+            <input value={upi.phone} onChange={(e) => setUpi((s) => ({ ...s, phone: e.target.value }))} />
+          </label>
+          <button type="submit" disabled={savingUpi} style={{ alignSelf: 'flex-start' }}>
+            {savingUpi ? 'Saving…' : 'Save UPI'}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

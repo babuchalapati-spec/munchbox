@@ -41,23 +41,36 @@ export default function Layout() {
           <h2>Munchbox {isAdmin ? 'Admin' : 'Shop'}</h2>
         </div>
         <nav>
-          <NavLink to="/admin" end>Dashboard</NavLink>
-          <NavLink to="/admin/orders">Orders</NavLink>
-          <NavLink to="/admin/live-map">Live map</NavLink>
-          <NavLink to="/admin/catering">Catering</NavLink>
-          <NavLink to="/admin/products">Products</NavLink>
-          <NavLink to="/admin/ledger">Ledger</NavLink>
-          {isAdmin && <NavLink to="/admin/finance">Finance</NavLink>}
-          {isAdmin && <NavLink to="/admin/shops">Shops</NavLink>}
-          {isAdmin && <NavLink to="/admin/shop-accounts">Shop approvals</NavLink>}
-          {isAdmin && <NavLink to="/admin/item-approvals">Item approvals</NavLink>}
-          {isAdmin && <NavLink to="/admin/payments">Payments</NavLink>}
-          {isAdmin && <NavLink to="/admin/delivery-accounts">Delivery partners</NavLink>}
-          {isAdmin && <NavLink to="/admin/settings">Settings</NavLink>}
+          <div className="sidebar-group-label">Overview</div>
+          <NavLink to="/admin" end><span className="nav-icon">🏠</span>Dashboard</NavLink>
+          <NavLink to="/admin/orders"><span className="nav-icon">🧾</span>Orders</NavLink>
+          <NavLink to="/admin/live-map"><span className="nav-icon">🗺️</span>Live map</NavLink>
+
+          <div className="sidebar-group-label">Operations</div>
+          <NavLink to="/admin/catering"><span className="nav-icon">🍽️</span>Catering</NavLink>
+          <NavLink to="/admin/products"><span className="nav-icon">🎂</span>Products</NavLink>
+          <NavLink to="/admin/ledger"><span className="nav-icon">📒</span>Ledger</NavLink>
+          {isAdmin && <NavLink to="/admin/payments"><span className="nav-icon">💳</span>Payments</NavLink>}
+
           {isAdmin && (
-            <a href="/test-center" target="_blank" rel="noopener noreferrer">
-              🧪 Test Center
-            </a>
+            <>
+              <div className="sidebar-group-label">Business</div>
+              <NavLink to="/admin/finance"><span className="nav-icon">📊</span>Finance</NavLink>
+              <NavLink to="/admin/shops"><span className="nav-icon">🏪</span>Shops</NavLink>
+              <NavLink to="/admin/shop-accounts"><span className="nav-icon">✅</span>Shop approvals</NavLink>
+              <NavLink to="/admin/item-approvals"><span className="nav-icon">📦</span>Item approvals</NavLink>
+              <NavLink to="/admin/delivery-accounts"><span className="nav-icon">🛵</span>Delivery partners</NavLink>
+            </>
+          )}
+
+          {isAdmin && (
+            <>
+              <div className="sidebar-group-label">System</div>
+              <NavLink to="/admin/settings"><span className="nav-icon">⚙️</span>Settings</NavLink>
+              <a href="/test-center" target="_blank" rel="noopener noreferrer">
+                <span className="nav-icon">🧪</span>Test Center
+              </a>
+            </>
           )}
         </nav>
         <div className="sidebar-footer">

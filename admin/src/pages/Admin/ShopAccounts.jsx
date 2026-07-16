@@ -108,117 +108,141 @@ export default function ShopAccounts() {
     }
   }
 
-  if (loading) return <p>Loading shop accounts...</p>;
+  if (loading) return <p className="muted">Loading shop accounts…</p>;
 
   const pending = accounts.filter((a) => a.status === 'pending');
   const others = accounts.filter((a) => a.status !== 'pending');
+  const active = accounts.filter((a) => a.status === 'active').length;
+  const rejected = accounts.filter((a) => a.status === 'rejected').length;
 
   return (
     <div>
       <h1>Shop accounts</h1>
-      <p style={{ color: '#776b63' }}>
+      <p className="muted" style={{ marginTop: -8, marginBottom: 20 }}>
         Shops that owners register from the app appear here. Approve one to let the owner log in.
       </p>
-      {error && <p style={{ color: '#c62828' }}>{error}</p>}
+      {error && <p className="error">{error}</p>}
 
-      <h2 style={{ marginTop: 16 }}>Awaiting approval ({pending.length})</h2>
-      {pending.length === 0 ? (
-        <p style={{ color: '#776b63' }}>No shops waiting for approval.</p>
-      ) : (
-        <table width="100%" cellPadding="8" style={{ borderCollapse: 'collapse' }}>
+      <div className="dash-stats" style={{ marginBottom: 24 }}>
+        <div className="stat-tile" style={{ cursor: 'default' }}>
+          <span className="stat-num">{pending.length}</span>
+          <span className="stat-label">Awaiting approval</span>
+        </div>
+        <div className="stat-tile" style={{ cursor: 'default' }}>
+          <span className="stat-num">{active}</span>
+          <span className="stat-label">Active shops</span>
+        </div>
+        <div className="stat-tile" style={{ cursor: 'default' }}>
+          <span className="stat-num">{rejected}</span>
+          <span className="stat-label">Rejected</span>
+        </div>
+      </div>
+
+      <div className="card">
+        <h2>🕓 Awaiting approval ({pending.length})</h2>
+        {pending.length === 0 ? (
+          <p className="muted">No shops waiting for approval.</p>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Owner</th>
+                <th>Contact</th>
+                <th>Shop</th>
+                <th>2FA</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pending.map((a) => (
+                <tr key={a._id}>
+                  <td><strong>{a.name}</strong></td>
+                  <td>
+                    <div>{a.email}</div>
+                    <div className="muted">{a.phone || '—'}</div>
+                  </td>
+                  <td>
+                    {a.shop?.name || '—'}
+                    <div className="muted">{a.shop?.category || '—'}</div>
+                  </td>
+                  <td>
+                    <div style={{ marginBottom: 4 }}>{a.twoFactor?.enabled ? '✅ set up' : a.twoFactor?.allowed ? '🔓 allowed' : '—'}</div>
+                    <button className="btn-secondary" onClick={() => toggleTwoFactor(a)} disabled={busyId === a._id} style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}>
+                      {a.twoFactor?.allowed ? 'Disallow' : 'Allow'}
+                    </button>
+                  </td>
+                  <td>
+                    <div className="row-actions" style={{ flexWrap: 'wrap' }}>
+                      <button onClick={() => approve(a._id)} disabled={busyId === a._id} style={{ background: '#2e7d32' }}>
+                        Approve
+                      </button>
+                      <button onClick={() => reject(a._id)} disabled={busyId === a._id} style={{ background: '#c62828' }}>
+                        Reject
+                      </button>
+                      <button className="btn-outline" onClick={() => resetPassword(a)} disabled={busyId === a._id}>
+                        Set password
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <div className="card">
+        <h2>All shop accounts ({others.length})</h2>
+        <table className="table">
           <thead>
-            <tr style={{ textAlign: 'left', borderBottom: '2px solid #e6e0da' }}>
+            <tr>
               <th>Owner</th>
-              <th>Email</th>
-              <th>Phone</th>
+              <th>Contact</th>
               <th>Shop</th>
               <th>2FA</th>
+              <th>Deposit</th>
+              <th>Status</th>
               <th>Action</th>
             </tr>
           </thead>
           <tbody>
-            {pending.map((a) => (
-              <tr key={a._id} style={{ borderBottom: '1px solid #e6e0da' }}>
-                <td>{a.name}</td>
-                <td>{a.email}</td>
-                <td>{a.phone || '—'}</td>
-                <td>{a.shop?.name || '—'} <span style={{ color: '#776b63' }}>({a.shop?.category || '—'})</span></td>
+            {others.map((a) => (
+              <tr key={a._id}>
+                <td><strong>{a.name}</strong></td>
                 <td>
-                  {a.twoFactor?.enabled ? '✅ set up' : a.twoFactor?.allowed ? '🔓 allowed' : '—'}
-                  <button
-                    onClick={() => toggleTwoFactor(a)}
-                    disabled={busyId === a._id}
-                    style={{ marginLeft: 6, fontSize: '0.8rem' }}
-                  >
+                  <div>{a.email}</div>
+                  <div className="muted">{a.phone || '—'}</div>
+                </td>
+                <td>{a.shop?.name || '—'}</td>
+                <td>
+                  <div style={{ marginBottom: 4 }}>{a.twoFactor?.enabled ? '✅ set up' : a.twoFactor?.allowed ? '🔓 allowed' : '—'}</div>
+                  <button className="btn-secondary" onClick={() => toggleTwoFactor(a)} disabled={busyId === a._id} style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}>
                     {a.twoFactor?.allowed ? 'Disallow' : 'Allow'}
                   </button>
                 </td>
-                <td style={{ whiteSpace: 'nowrap' }}>
-                  <button onClick={() => approve(a._id)} disabled={busyId === a._id} style={{ background: '#2e7d32', color: '#fff', marginRight: 6 }}>
-                    Approve
-                  </button>
-                  <button onClick={() => reject(a._id)} disabled={busyId === a._id} style={{ background: '#c62828', color: '#fff', marginRight: 6 }}>
-                    Reject
-                  </button>
-                  <button onClick={() => resetPassword(a)} disabled={busyId === a._id}>
-                    Set password
-                  </button>
+                <td>{depositLabel(a.shop)}</td>
+                <td>
+                  <span className="status-badge" style={{ background: 'transparent', color: STATUS_COLOR[a.status] || '#776b63', paddingLeft: 0 }}>
+                    {STATUS_LABEL[a.status] || a.status}
+                  </span>
+                </td>
+                <td>
+                  <div className="row-actions" style={{ flexWrap: 'wrap' }}>
+                    {a.status !== 'active' && (
+                      <button onClick={() => approve(a._id)} disabled={busyId === a._id} style={{ background: '#2e7d32' }}>
+                        Approve
+                      </button>
+                    )}
+                    <button className="btn-outline" onClick={() => resetPassword(a)} disabled={busyId === a._id}>
+                      Set password
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-      )}
-
-      <h2 style={{ marginTop: 24 }}>All shop accounts</h2>
-      <table width="100%" cellPadding="8" style={{ borderCollapse: 'collapse' }}>
-        <thead>
-          <tr style={{ textAlign: 'left', borderBottom: '2px solid #e6e0da' }}>
-            <th>Owner</th>
-            <th>Email</th>
-            <th>Phone</th>
-            <th>Shop</th>
-            <th>2FA</th>
-            <th>Deposit</th>
-            <th>Status</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          {others.map((a) => (
-            <tr key={a._id} style={{ borderBottom: '1px solid #e6e0da' }}>
-              <td>{a.name}</td>
-              <td>{a.email}</td>
-              <td>{a.phone || '—'}</td>
-              <td>{a.shop?.name || '—'}</td>
-              <td>
-                {a.twoFactor?.enabled ? '✅ set up' : a.twoFactor?.allowed ? '🔓 allowed' : '—'}
-                <button
-                  onClick={() => toggleTwoFactor(a)}
-                  disabled={busyId === a._id}
-                  style={{ marginLeft: 6, fontSize: '0.8rem' }}
-                >
-                  {a.twoFactor?.allowed ? 'Disallow' : 'Allow'}
-                </button>
-              </td>
-              <td>{depositLabel(a.shop)}</td>
-              <td style={{ color: STATUS_COLOR[a.status] || '#776b63', fontWeight: 600 }}>
-                {STATUS_LABEL[a.status] || a.status}
-              </td>
-              <td style={{ whiteSpace: 'nowrap' }}>
-                {a.status !== 'active' && (
-                  <button onClick={() => approve(a._id)} disabled={busyId === a._id} style={{ background: '#2e7d32', color: '#fff', marginRight: 6 }}>
-                    Approve
-                  </button>
-                )}
-                <button onClick={() => resetPassword(a)} disabled={busyId === a._id}>
-                  Set password
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      </div>
     </div>
   );
 }
