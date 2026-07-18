@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { requestOtp } from '../api/auth';
+import { requestOtp, resetPasswordWithOtp } from '../api/auth';
 
 export default function Login() {
   const { login, loginWithOtp, verifyTwoFactor } = useAuth();
   const navigate = useNavigate();
-  const [mode, setMode] = useState('password'); // 'password' | 'otp'
+  const [mode, setMode] = useState('password'); // 'password' | 'otp' | 'forgot'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   // OTP
@@ -18,6 +18,11 @@ export default function Login() {
   // Two-factor (authenticator code) — second step after password or OTP, if enabled.
   const [twoFa, setTwoFa] = useState(null); // { ticket, email }
   const [twoFaCode, setTwoFaCode] = useState('');
+  // Forgot password (OTP-only — resets whichever account, shop or admin, owns this phone)
+  const [forgotPhone, setForgotPhone] = useState('');
+  const [forgotCode, setForgotCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [forgotStep, setForgotStep] = useState('phone'); // 'phone' | 'reset' | 'done'
 
   async function handlePassword(e) {
     e.preventDefault();
@@ -86,6 +91,48 @@ export default function Login() {
     }
   }
 
+  async function sendForgotOtp(e) {
+    e.preventDefault();
+    setError('');
+    setSubmitting(true);
+    try {
+      const res = await requestOtp(forgotPhone);
+      setForgotStep('reset');
+      if (res.devMode && res.devCode) console.log(`[dev OTP] ${forgotPhone}: ${res.devCode}`);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not send OTP');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function submitForgotReset(e) {
+    e.preventDefault();
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+    setError('');
+    setSubmitting(true);
+    try {
+      await resetPasswordWithOtp(forgotPhone, forgotCode, newPassword);
+      setForgotStep('done');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not reset password');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function backToPasswordLogin() {
+    setMode('password');
+    setForgotStep('phone');
+    setForgotPhone('');
+    setForgotCode('');
+    setNewPassword('');
+    setError('');
+  }
+
   return (
     <div className="login-split">
       <div className="login-hero">
@@ -104,7 +151,7 @@ export default function Login() {
           <h2>Sign in</h2>
           <p className="login-sub">Admin & shop owner portal</p>
 
-          {!twoFa && (
+          {!twoFa && mode !== 'forgot' && (
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
               <button
                 type="button"
@@ -118,7 +165,7 @@ export default function Login() {
                 onClick={() => { setMode('otp'); setError(''); }}
                 style={{ flex: 1, opacity: mode === 'otp' ? 1 : 0.6 }}
               >
-                OTP (shop owner)
+                OTP
               </button>
             </div>
           )}
@@ -164,11 +211,62 @@ export default function Login() {
               <button type="submit" disabled={submitting}>
                 {submitting ? 'Signing in...' : 'Sign in'}
               </button>
+              <button
+                type="button"
+                onClick={() => { setMode('forgot'); setError(''); }}
+                style={{ background: 'transparent', color: '#c2185b' }}
+              >
+                Forgot password?
+              </button>
             </form>
+          ) : mode === 'forgot' ? (
+            forgotStep === 'phone' ? (
+              <form onSubmit={sendForgotOtp} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <p className="login-sub">
+                  Enter the phone number on your account (the one saved in Settings → My account, for admin;
+                  or your shop's phone number). We'll send an OTP to reset your password.
+                </p>
+                <label>
+                  Phone number
+                  <input value={forgotPhone} onChange={(e) => setForgotPhone(e.target.value)} required autoFocus />
+                </label>
+                <button type="submit" disabled={submitting}>
+                  {submitting ? 'Sending...' : 'Send OTP'}
+                </button>
+                <button type="button" onClick={backToPasswordLogin} style={{ background: 'transparent', color: '#c2185b' }}>
+                  ← Back to sign in
+                </button>
+              </form>
+            ) : forgotStep === 'reset' ? (
+              <form onSubmit={submitForgotReset} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <p className="login-sub">OTP sent to {forgotPhone}</p>
+                <label>
+                  Enter OTP
+                  <input value={forgotCode} onChange={(e) => setForgotCode(e.target.value)} required autoFocus />
+                </label>
+                <label>
+                  New password
+                  <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={6} />
+                </label>
+                <button type="submit" disabled={submitting}>
+                  {submitting ? 'Resetting...' : 'Reset password'}
+                </button>
+                <button type="button" onClick={() => setForgotStep('phone')} style={{ background: 'transparent', color: '#c2185b' }}>
+                  Change number
+                </button>
+              </form>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <p className="login-sub">Password updated. You can now sign in with your new password.</p>
+                <button type="button" onClick={backToPasswordLogin}>
+                  ← Back to sign in
+                </button>
+              </div>
+            )
           ) : otpStep === 'phone' ? (
             <form onSubmit={sendOtp} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <label>
-                Shop phone number
+                Phone number
                 <input value={phone} onChange={(e) => setPhone(e.target.value)} required autoFocus />
               </label>
               <button type="submit" disabled={submitting}>

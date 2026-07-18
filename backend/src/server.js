@@ -21,7 +21,11 @@ const paymentRoutes = require('./routes/paymentRoutes');
 
 const app = express();
 
-app.use(cors({ origin: process.env.CLIENT_URL || '*' }));
+// Reflects back whatever Origin sent the request instead of a single fixed value —
+// the admin/pwa dev servers are reachable at whatever LAN IP the device is on (which
+// changes across networks), and this app authenticates via a Bearer token (not
+// cookies), so there's no CSRF/credential-leak risk in allowing any origin.
+app.use(cors({ origin: true }));
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 // Serves published APKs for in-app auto-update.
@@ -36,7 +40,7 @@ app.use((req, res, next) => {
   res.on('finish', () => {
     // Log every request (skip noisy static/version polling) so we can see whether the
     // phone is reaching the server at all, and what it sends.
-    if (req.originalUrl.startsWith('/downloads') || req.originalUrl.startsWith('/api/app/version')) return;
+    if (req.originalUrl.startsWith('/api/app/version')) return;
     const line = [
       new Date().toISOString(),
       `ip=${(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').replace('::ffff:', '')}`,
@@ -83,11 +87,15 @@ app.use(errorHandler);
 async function ensureAdminUser() {
   const adminEmail = (process.env.ADMIN_EMAIL || 'admin@munchbox.com').toLowerCase();
   const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
+  // Optional: set ADMIN_PHONE in .env to let the admin log into the dashboard's OTP
+  // tab (Settings > Payments has nothing to do with this — it's a plain env var) instead
+  // of only email+password.
+  const adminPhone = process.env.ADMIN_PHONE ? String(process.env.ADMIN_PHONE).trim() : '';
 
   let admin = await User.findOne({ email: adminEmail });
   if (!admin) {
     const hashed = await bcrypt.hash(adminPassword, 10);
-    admin = await User.create({ name: 'Admin', email: adminEmail, password: hashed, role: 'admin' });
+    admin = await User.create({ name: 'Admin', email: adminEmail, password: hashed, role: 'admin', phone: adminPhone || undefined });
     console.log(`Created admin user: ${adminEmail}`);
     return;
   }
@@ -99,6 +107,10 @@ async function ensureAdminUser() {
   }
   if (admin.role !== 'admin') {
     admin.role = 'admin';
+    changed = true;
+  }
+  if (adminPhone && admin.phone !== adminPhone) {
+    admin.phone = adminPhone;
     changed = true;
   }
   const passwordMatches = await bcrypt.compare(adminPassword, admin.password);

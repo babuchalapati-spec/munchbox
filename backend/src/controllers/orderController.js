@@ -7,7 +7,7 @@ const ReferralTicket = require('../models/ReferralTicket');
 const LedgerEntry = require('../models/LedgerEntry');
 const PaymentFailure = require('../models/PaymentFailure');
 const { computeDeliveryFee, haversineKm, getEta } = require('../utils/distance');
-const { createRazorpayOrder, fetchRazorpayOrder, verifyRazorpaySignature } = require('../utils/razorpay');
+const { createRazorpayOrder, fetchRazorpayOrder, verifyRazorpaySignature, getCredentials } = require('../utils/razorpay');
 const { ORDER_STATUSES } = Order;
 
 const MIN_WALLET_BALANCE = 500;
@@ -461,11 +461,12 @@ async function createRazorpayPaymentOrder(req, res) {
   }
   try {
     const gatewayOrder = await createRazorpayOrder(quote.totalAmount, `mb_${req.user._id}_${Date.now()}`);
+    const { keyId } = await getCredentials();
     res.json({
       razorpayOrderId: gatewayOrder.id,
       amount: gatewayOrder.amount,
       currency: gatewayOrder.currency,
-      keyId: process.env.RAZORPAY_KEY_ID || '',
+      keyId,
       totalAmount: quote.totalAmount,
     });
   } catch (err) {
@@ -574,7 +575,7 @@ async function placeOrder(req, res) {
     if (!gatewayOrderId || !gatewayPaymentId || !signature) {
       return res.status(400).json({ message: 'Payment verification details are required for online payment' });
     }
-    if (!verifyRazorpaySignature(gatewayOrderId, gatewayPaymentId, signature)) {
+    if (!(await verifyRazorpaySignature(gatewayOrderId, gatewayPaymentId, signature))) {
       return res.status(400).json({ message: 'Payment verification failed. If money was deducted, it will be refunded automatically.' });
     }
     // If the app already used this exact payment to create an order — e.g. the phone's

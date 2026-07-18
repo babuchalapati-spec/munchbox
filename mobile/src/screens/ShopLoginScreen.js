@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -83,6 +83,13 @@ export default function ShopLoginScreen({ navigation }) {
   const [phone, setPhone] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [otpStep, setOtpStep] = useState('phone'); // 'phone' | 'code'
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => setResendCooldown((s) => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   const upd = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -111,8 +118,23 @@ export default function ShopLoginScreen({ navigation }) {
     try {
       await requestOtp(phone);
       setOtpStep('code');
+      setResendCooldown(30);
     } catch (err) {
       setError(err.response?.data?.message || 'Could not send OTP');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resendShopOtp() {
+    if (resendCooldown > 0 || busy) return;
+    setError('');
+    setBusy(true);
+    try {
+      await requestOtp(phone);
+      setResendCooldown(30);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not resend OTP');
     } finally {
       setBusy(false);
     }
@@ -241,6 +263,11 @@ export default function ShopLoginScreen({ navigation }) {
               <TouchableOpacity style={styles.button} onPress={verifyShopOtp} disabled={busy}>
                 {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Verify & sign in</Text>}
               </TouchableOpacity>
+              <TouchableOpacity onPress={resendShopOtp} disabled={resendCooldown > 0 || busy}>
+                <Text style={[styles.link, (resendCooldown > 0 || busy) && styles.linkDisabled]}>
+                  {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : 'Resend OTP'}
+                </Text>
+              </TouchableOpacity>
               <TouchableOpacity onPress={() => { setOtpStep('phone'); setOtpCode(''); setError(''); }}>
                 <Text style={styles.link}>← Change number</Text>
               </TouchableOpacity>
@@ -346,6 +373,7 @@ const styles = StyleSheet.create({
   button: { backgroundColor: colors.primary, borderRadius: 8, padding: 14, alignItems: 'center', marginTop: 6 },
   buttonText: { color: '#fff', fontWeight: '700' },
   link: { color: colors.primary, textAlign: 'center', marginTop: 16 },
+  linkDisabled: { color: colors.muted },
   error: { color: '#c62828', marginBottom: 10 },
   catRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
   cat: { flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingVertical: 10, alignItems: 'center', backgroundColor: colors.card },

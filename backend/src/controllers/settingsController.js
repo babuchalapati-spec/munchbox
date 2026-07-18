@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const Razorpay = require('razorpay');
 const Settings = require('../models/Settings');
 const { callProvider } = require('../utils/sms');
 
@@ -25,7 +26,7 @@ async function getPaymentInfo(req, res) {
 
 async function updateSettings(req, res) {
   const settings = await Settings.getSingleton();
-  const { sms, app, partnerApp, shopApp, payments, finance, maps } = req.body;
+  const { sms, app, partnerApp, shopApp, payments, razorpay, finance, maps } = req.body;
 
   if (payments) {
     if (!settings.payments) settings.payments = {};
@@ -35,11 +36,21 @@ async function updateSettings(req, res) {
     if (payments.note !== undefined) settings.payments.note = payments.note;
   }
 
+  if (razorpay) {
+    if (!settings.razorpay) settings.razorpay = {};
+    if (razorpay.keyId !== undefined) settings.razorpay.keyId = razorpay.keyId;
+    if (razorpay.keySecret !== undefined) settings.razorpay.keySecret = razorpay.keySecret;
+    if (razorpay.enabled !== undefined) settings.razorpay.enabled = razorpay.enabled === true || razorpay.enabled === 'true';
+  }
+
   if (sms) {
     if (sms.provider !== undefined) settings.sms.provider = sms.provider;
     if (sms.apiKey !== undefined) settings.sms.apiKey = sms.apiKey;
     if (sms.apiSecret !== undefined) settings.sms.apiSecret = sms.apiSecret;
     if (sms.senderId !== undefined) settings.sms.senderId = sms.senderId;
+    if (sms.dltEntityId !== undefined) settings.sms.dltEntityId = sms.dltEntityId;
+    if (sms.dltTemplateId !== undefined) settings.sms.dltTemplateId = sms.dltTemplateId;
+    if (sms.otpMessageTemplate !== undefined) settings.sms.otpMessageTemplate = sms.otpMessageTemplate;
     if (sms.enabled !== undefined) settings.sms.enabled = sms.enabled === true || sms.enabled === 'true';
   }
 
@@ -91,15 +102,42 @@ async function testSms(req, res) {
   if (!req.user?.role || req.user.role !== 'admin') {
     return res.status(403).json({ message: 'Only admins can send a test SMS' });
   }
-  const { phone, provider, apiKey, apiSecret, senderId } = req.body;
+  const { phone, provider, apiKey, apiSecret, senderId, dltEntityId, dltTemplateId, otpMessageTemplate } = req.body;
   if (!phone) return res.status(400).json({ message: 'Enter a phone number to send the test SMS to' });
   if (!provider || !apiKey) return res.status(400).json({ message: 'Choose a provider and enter an API key first' });
 
+  // Send the real OTP template (with a sample code) rather than a generic test string —
+  // for DLT routes, a generic string would always fail regardless of whether the actual
+  // configured template is correct, making the test useless for catching template mismatches.
+  const template = (otpMessageTemplate || '').trim() || 'Your Munchbox OTP is {otp}. Valid for 5 minutes.';
+  const testMessage = template.replace(/\{otp\}/g, '123456');
+
   try {
-    await callProvider({ provider, apiKey, apiSecret, senderId }, phone, 'Munchbox test SMS: your settings are working correctly.');
+    await callProvider({ provider, apiKey, apiSecret, senderId, dltEntityId, dltTemplateId }, phone, testMessage);
     res.json({ sent: true, message: `Test SMS sent to ${phone}. Check that phone for the message.` });
   } catch (err) {
     res.status(400).json({ sent: false, message: err.message || 'Could not send the test SMS' });
+  }
+}
+
+// Creates a real ₹1 test order against Razorpay using whatever keys are passed in —
+// NOT necessarily what's already saved, same "test before you commit" pattern as
+// testSms, so a typo'd key is caught here instead of at a real customer's checkout.
+async function testRazorpay(req, res) {
+  if (!req.user?.role || req.user.role !== 'admin') {
+    return res.status(403).json({ message: 'Only admins can test the payment gateway' });
+  }
+  const { keyId, keySecret } = req.body;
+  if (!keyId || !keySecret) {
+    return res.status(400).json({ message: 'Enter both the Key ID and Key Secret first' });
+  }
+  try {
+    const client = new Razorpay({ key_id: keyId, key_secret: keySecret });
+    const order = await client.orders.create({ amount: 100, currency: 'INR', receipt: `mb_test_${Date.now()}` });
+    res.json({ ok: true, message: `Connected to Razorpay successfully (test order ${order.id} created).` });
+  } catch (err) {
+    const message = err?.error?.description || err.message || 'Could not connect to Razorpay with these keys';
+    res.status(400).json({ ok: false, message });
   }
 }
 
@@ -147,4 +185,4 @@ async function publishApk(req, res) {
   res.json({ settings, apkUrl: targetApp.apkUrl, fileName: targetName });
 }
 
-module.exports = { getSettings, getPaymentInfo, updateSettings, publishApk, testSms };
+module.exports = { getSettings, getPaymentInfo, updateSettings, publishApk, testSms, testRazorpay };

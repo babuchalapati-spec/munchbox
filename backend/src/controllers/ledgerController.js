@@ -2,6 +2,22 @@ const PDFDocument = require('pdfkit');
 const LedgerEntry = require('../models/LedgerEntry');
 const User = require('../models/User');
 const Shop = require('../models/Shop');
+const { createRazorpayOrder, fetchRazorpayOrder, verifyRazorpaySignature, getCredentials } = require('../utils/razorpay');
+
+// Once a shop/delivery top-up is confirmed paid, clear the shop's activation deposit
+// if this payment brought the balance up to the required amount. Same rule the admin's
+// manual UPI-topup confirmation uses (see reviewTopUp) — kept in sync here.
+async function clearShopDepositIfPaid(ownerId, ownerRole, balanceAfter) {
+  if (ownerRole !== 'shop') return;
+  const owner = await User.findById(ownerId);
+  const shop = owner?.shop ? await Shop.findById(owner.shop) : null;
+  if (shop?.deposit?.required && !shop.deposit.paid && balanceAfter >= shop.deposit.amount) {
+    shop.deposit.paid = true;
+    shop.available = true;
+    shop.subscription.active = true;
+    await shop.save();
+  }
+}
 
 function normalizeAmount(value) {
   const parsed = Number(value);
@@ -128,16 +144,7 @@ async function reviewTopUp(req, res) {
 
     // If this shop is waiting on its activation deposit, this payment may clear it —
     // the shop goes live the moment the required amount has been confirmed.
-    if (entry.ownerRole === 'shop') {
-      const owner = await User.findById(entry.owner);
-      const shop = owner?.shop ? await Shop.findById(owner.shop) : null;
-      if (shop?.deposit?.required && !shop.deposit.paid && entry.balanceAfter >= shop.deposit.amount) {
-        shop.deposit.paid = true;
-        shop.available = true;
-        shop.subscription.active = true;
-        await shop.save();
-      }
-    }
+    await clearShopDepositIfPaid(entry.owner, entry.ownerRole, entry.balanceAfter);
 
     return res.json({ entry, message: 'Top-up confirmed and balance credited.' });
   }
@@ -196,6 +203,81 @@ async function createLedgerEntry(req, res) {
   });
 
   res.status(201).json({ entry });
+}
+
+// Shop/delivery: start an online top-up via Razorpay — an alternative to the manual
+// UPI flow above that doesn't need the admin to confirm anything (Razorpay itself
+// confirms the money moved, so the balance is credited immediately on verify).
+async function createWalletTopUpOrder(req, res) {
+  if (!['shop', 'delivery'].includes(req.user.role)) {
+    return res.status(403).json({ message: 'Only shop or delivery accounts can add balance' });
+  }
+  const amountValue = normalizeAmount(req.body.amount);
+  if (amountValue <= 0) {
+    return res.status(400).json({ message: 'Enter a valid amount' });
+  }
+  try {
+    const gatewayOrder = await createRazorpayOrder(amountValue, `mbtopup_${req.user._id}_${Date.now()}`);
+    const { keyId } = await getCredentials();
+    res.json({
+      razorpayOrderId: gatewayOrder.id,
+      amount: gatewayOrder.amount,
+      currency: gatewayOrder.currency,
+      keyId,
+    });
+  } catch (err) {
+    res.status(err.statusCode || 502).json({ message: err.message || 'Could not start payment' });
+  }
+}
+
+// Verifies the Razorpay payment signature, then posts the credit straight away (status
+// 'posted', not 'pending') since Razorpay has already confirmed the money moved.
+async function verifyWalletTopUp(req, res) {
+  if (!['shop', 'delivery'].includes(req.user.role)) {
+    return res.status(403).json({ message: 'Only shop or delivery accounts can add balance' });
+  }
+  const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+  if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+    return res.status(400).json({ message: 'Payment verification details are required' });
+  }
+  if (!(await verifyRazorpaySignature(razorpayOrderId, razorpayPaymentId, razorpaySignature))) {
+    return res.status(400).json({ message: 'Payment verification failed. If money was deducted, it will be refunded automatically.' });
+  }
+
+  // Same retry-safety as order payments: if this exact payment was already credited
+  // (e.g. a network retry after the app already got the success callback), don't double-credit.
+  const existing = await LedgerEntry.findOne({ 'metadata.razorpayPaymentId': razorpayPaymentId });
+  if (existing) {
+    return res.json({ entry: existing, message: 'Balance already credited for this payment.' });
+  }
+
+  // Trust the amount Razorpay recorded for this order, not anything the client sends.
+  let gatewayOrder;
+  try {
+    gatewayOrder = await fetchRazorpayOrder(razorpayOrderId);
+  } catch (err) {
+    return res.status(502).json({ message: 'Could not confirm payment with the gateway. Please try again.' });
+  }
+  const amountValue = Number((gatewayOrder.amount / 100).toFixed(2));
+
+  const last = await LedgerEntry.findOne({ owner: req.user._id, status: 'posted' }).sort({ createdAt: -1 });
+  const balanceAfter = Number(((last?.balanceAfter || 0) + amountValue).toFixed(2));
+
+  const entry = await LedgerEntry.create({
+    owner: req.user._id,
+    ownerRole: req.user.role,
+    kind: 'deposit',
+    direction: 'credit',
+    amount: amountValue,
+    balanceAfter,
+    description: `Razorpay top-up ₹${amountValue}`,
+    status: 'posted',
+    metadata: { razorpayOrderId, razorpayPaymentId },
+  });
+
+  await clearShopDepositIfPaid(req.user._id, req.user.role, balanceAfter);
+
+  res.status(201).json({ entry, message: `₹${amountValue} added to your balance.` });
 }
 
 // Downloadable PDF statement — same access rules as getLedger (self for shop/delivery,
@@ -271,4 +353,6 @@ module.exports = {
   requestTopUp,
   reviewTopUp,
   listPendingTopUps,
+  createWalletTopUpOrder,
+  verifyWalletTopUp,
 };

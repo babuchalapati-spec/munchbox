@@ -23,3 +23,14 @@ export async function requestTopUp(amount, reference) {
   const { data } = await client.post('/auth/ledger/topup', { amount, reference });
   return data;
 }
+
+// Online top-up via Razorpay — credited instantly on verify, no admin confirmation needed.
+export async function createRazorpayTopUpOrder(amount) {
+  const { data } = await client.post('/auth/ledger/topup/razorpay/order', { amount });
+  return data; // { razorpayOrderId, amount, currency, keyId }
+}
+
+export async function verifyRazorpayTopUp(payload) {
+  const { data } = await client.post('/auth/ledger/topup/razorpay/verify', payload);
+  return data; // { entry, message }
+}

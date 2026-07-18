@@ -10,15 +10,27 @@ async function callProvider(sms, phone, message) {
   if (sms.provider === 'fast2sms') {
     const url = new URL('https://www.fast2sms.com/dev/bulkV2');
     url.searchParams.set('authorization', sms.apiKey);
-    url.searchParams.set('route', 'q'); // Quick SMS — needs a DLT-approved sender for production use in India.
+    if (sms.senderId) {
+      // DLT Manual route — required for real transactional/OTP SMS in India once you have
+      // a DLT-approved sender ID. entity_id/template_id are optional: if the message text
+      // is already added as a content template in Fast2SMS's own DLT Manager, Fast2SMS
+      // matches them automatically in the backend from the message text.
+      url.searchParams.set('route', 'dlt_manual');
+      url.searchParams.set('sender_id', sms.senderId);
+      if (sms.dltEntityId) url.searchParams.set('entity_id', sms.dltEntityId);
+      if (sms.dltTemplateId) url.searchParams.set('template_id', sms.dltTemplateId);
+    } else {
+      url.searchParams.set('route', 'q'); // Quick SMS — demo/test route only, no DLT sender required.
+    }
     url.searchParams.set('message', message);
     url.searchParams.set('flash', '0');
     url.searchParams.set('numbers', digitsOnly);
-    if (sms.senderId) url.searchParams.set('sender_id', sms.senderId);
     const res = await fetch(url.toString(), { method: 'GET' });
     const body = await res.json().catch(() => ({}));
     if (!res.ok || body.return !== true) {
-      throw new Error(body.message?.join?.(', ') || `Fast2SMS error (HTTP ${res.status})`);
+      const reason = Array.isArray(body.message) ? body.message.join(', ') : body.message;
+      console.error('[SMS:fast2sms] raw error response:', JSON.stringify(body));
+      throw new Error(reason || `Fast2SMS error (HTTP ${res.status})`);
     }
     return;
   }
@@ -82,4 +94,24 @@ async function sendSms(phone, message) {
   }
 }
 
-module.exports = { sendSms, callProvider };
+// Sends an OTP using the configured message template so the wording actually sent
+// matches what the admin registered in Settings — critical for DLT routes, where the
+// operator silently drops any SMS whose text doesn't match the approved template exactly.
+async function sendOtpSms(phone, code) {
+  const settings = await Settings.getSingleton();
+  const sms = settings.sms || {};
+  const template = (sms.otpMessageTemplate || '').trim() || 'Your Munchbox OTP is {otp}. Valid for 5 minutes.';
+  const message = template.replace(/\{otp\}/g, code);
+  if (!sms.enabled || !sms.provider || !sms.apiKey) {
+    return { sent: false, reason: 'SMS not configured' };
+  }
+  try {
+    await callProvider(sms, phone, message);
+    return { sent: true };
+  } catch (err) {
+    console.error(`[SMS:${sms.provider}] failed to send OTP to ${phone}:`, err.message);
+    return { sent: false, reason: err.message };
+  }
+}
+
+module.exports = { sendSms, sendOtpSms, callProvider };

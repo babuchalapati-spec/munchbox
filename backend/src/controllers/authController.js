@@ -5,7 +5,7 @@ const Shop = require('../models/Shop');
 const Otp = require('../models/Otp');
 const Coupon = require('../models/Coupon');
 const ReferralTicket = require('../models/ReferralTicket');
-const { sendSms } = require('../utils/sms');
+const { sendSms, sendOtpSms } = require('../utils/sms');
 const { generateSecret, qrDataUrl, verifyToken } = require('../utils/twoFactor');
 
 function signToken(user) {
@@ -205,7 +205,7 @@ async function requestOtp(req, res) {
   if (!phone) return res.status(400).json({ message: 'phone is required' });
 
   const randomCode = String(Math.floor(100000 + Math.random() * 900000));
-  const result = await sendSms(phone, `Your Munchbox OTP is ${randomCode}. Valid for 5 minutes.`);
+  const result = await sendOtpSms(phone, randomCode);
 
   // When SMS is live, use the random code; otherwise fall back to the fixed OTP.
   const code = result.sent ? randomCode : FIXED_DEV_OTP;
@@ -218,7 +218,7 @@ async function requestOtp(req, res) {
     payload.devCode = code; // always 123456 in dev
     // Real SMS isn't configured (or failed) — the OTP is no longer shown on any
     // screen, so this terminal line is the only way to see it for testing.
-    console.log(`[dev OTP] ${phone}: ${code}`);
+    console.log(`[dev OTP] ${phone}: ${code} (real SMS not sent — reason: ${result.reason || 'unknown'})`);
   }
   res.json(payload);
 }
@@ -261,6 +261,13 @@ async function verifyOtp(req, res) {
       }
       return res.json({ user: toPublicUser(shopUser), token: signToken(shopUser) });
     }
+    // The admin dashboard's OTP tab serves both shop owners and the admin account, so
+    // a number not registered as a shop is also checked against the admin account
+    // (set via ADMIN_PHONE in .env) before giving up.
+    const adminUser = await User.findOne({ phone, role: 'admin' });
+    if (adminUser) {
+      return res.json({ user: toPublicUser(adminUser), token: signToken(adminUser) });
+    }
     return res.status(404).json({ message: 'No shop account for this number. Please contact the Munchbox admin.' });
   }
 
@@ -302,8 +309,17 @@ async function resetPasswordWithOtp(req, res) {
   }
   await Otp.deleteOne({ _id: otp._id });
 
-  const targetRole = role === 'delivery' || role === 'shop' ? role : 'customer';
-  const user = await User.findOne({ phone, role: targetRole });
+  // Mirrors verifyOtp's lookup: the admin dashboard's OTP tab uses role 'shop' for both
+  // shop owners and the admin account (set via ADMIN_PHONE in .env), so a number not
+  // registered as a shop is also checked against the admin account before giving up.
+  let user;
+  if (role === 'delivery') {
+    user = await User.findOne({ phone, role: 'delivery' });
+  } else if (role === 'shop') {
+    user = await User.findOne({ phone, role: 'shop' }) || await User.findOne({ phone, role: 'admin' });
+  } else {
+    user = await User.findOne({ phone, role: 'customer' });
+  }
   if (!user) {
     return res.status(404).json({ message: 'No account found for this number' });
   }

@@ -47,7 +47,7 @@ export function AuthProvider({ children }) {
       return { twoFactorRequired: true, ticket: data.ticket, email: data.email };
     }
     if (!data.user || (data.user.role !== 'shop' && data.user.role !== 'admin')) {
-      throw new Error('This number is not registered as a shop account');
+      throw new Error('This number is not registered to a dashboard account');
     }
     localStorage.setItem('cake_admin_token', data.token);
     setUser(data.user);

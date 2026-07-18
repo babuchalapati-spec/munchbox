@@ -1,11 +1,46 @@
 import { useEffect, useState } from 'react';
-import { getSettings, publishApk, updateSettings, testSms as testSmsApi } from '../../api/settings';
+import { getSettings, publishApk, updateSettings, testSms as testSmsApi, testRazorpay as testRazorpayApi } from '../../api/settings';
+import { updateMe } from '../../api/auth';
+import { useAuth } from '../../context/AuthContext';
 
 export default function Settings() {
-  const [sms, setSms] = useState({ provider: '', apiKey: '', apiSecret: '', senderId: '', enabled: false });
+  const { user } = useAuth();
+  const [myPhone, setMyPhone] = useState(user?.phone || '');
+  const [savingPhone, setSavingPhone] = useState(false);
+  const [phoneSaved, setPhoneSaved] = useState(false);
+  const [phoneError, setPhoneError] = useState('');
+
+  async function handleSavePhone(e) {
+    e.preventDefault();
+    setPhoneError('');
+    setPhoneSaved(false);
+    setSavingPhone(true);
+    try {
+      await updateMe({ phone: myPhone.trim() });
+      setPhoneSaved(true);
+    } catch (err) {
+      setPhoneError(err.response?.data?.message || 'Could not save phone number');
+    } finally {
+      setSavingPhone(false);
+    }
+  }
+
+  const [sms, setSms] = useState({
+    provider: '',
+    apiKey: '',
+    apiSecret: '',
+    senderId: '',
+    dltEntityId: '',
+    dltTemplateId: '',
+    otpMessageTemplate: 'Your Munchbox OTP is {otp}. Valid for 5 minutes.',
+    enabled: false,
+  });
   const [testPhone, setTestPhone] = useState('');
   const [testingSms, setTestingSms] = useState(false);
   const [testSmsResult, setTestSmsResult] = useState(null);
+  const [razorpay, setRazorpay] = useState({ keyId: '', keySecret: '', enabled: false });
+  const [testingRazorpay, setTestingRazorpay] = useState(false);
+  const [testRazorpayResult, setTestRazorpayResult] = useState(null);
   const [app, setApp] = useState({ latestVersionCode: 1, latestVersionName: '1.0', apkUrl: '', updateMessage: '', mandatory: false });
   const [partnerApp, setPartnerApp] = useState({
     latestVersionCode: 1,
@@ -33,6 +68,7 @@ export default function Settings() {
     getSettings()
       .then((s) => {
         setSms((prev) => ({ ...prev, ...(s.sms || {}) }));
+        setRazorpay((prev) => ({ ...prev, ...(s.razorpay || {}) }));
         setApp((prev) => ({ ...prev, ...(s.app || {}) }));
         setPartnerApp((prev) => ({ ...prev, ...(s.partnerApp || {}) }));
         setShopApp((prev) => ({ ...prev, ...(s.shopApp || {}) }));
@@ -43,6 +79,11 @@ export default function Settings() {
 
   function change(field, value) {
     setSms((s) => ({ ...s, [field]: value }));
+    setSaved(false);
+  }
+
+  function changeRazorpay(field, value) {
+    setRazorpay((r) => ({ ...r, [field]: value }));
     setSaved(false);
   }
 
@@ -82,14 +123,32 @@ export default function Settings() {
     e.preventDefault();
     setError('');
     try {
-      const updated = await updateSettings({ sms, app, partnerApp, shopApp });
+      const updated = await updateSettings({ sms, razorpay, app, partnerApp, shopApp });
       setSms(updated.sms);
+      setRazorpay((prev) => ({ ...prev, ...(updated.razorpay || {}) }));
       setApp(updated.app);
       setPartnerApp(updated.partnerApp);
       setShopApp(updated.shopApp);
       setSaved(true);
     } catch (err) {
       setError(err.response?.data?.message || 'Save failed');
+    }
+  }
+
+  async function handleTestRazorpay() {
+    if (!razorpay.keyId.trim() || !razorpay.keySecret.trim()) {
+      setTestRazorpayResult({ ok: false, message: 'Enter both the Key ID and Key Secret first' });
+      return;
+    }
+    setTestingRazorpay(true);
+    setTestRazorpayResult(null);
+    try {
+      const result = await testRazorpayApi({ keyId: razorpay.keyId.trim(), keySecret: razorpay.keySecret.trim() });
+      setTestRazorpayResult({ ok: true, message: result.message });
+    } catch (err) {
+      setTestRazorpayResult({ ok: false, message: err.response?.data?.message || 'Could not connect to Razorpay' });
+    } finally {
+      setTestingRazorpay(false);
     }
   }
 
@@ -135,6 +194,27 @@ export default function Settings() {
       <h1>Settings</h1>
       <p className="muted">Only the main admin can view and change these. Used for sending SMS / OTP.</p>
 
+      <form className="card form" onSubmit={handleSavePhone} style={{ maxWidth: 520 }}>
+        <h2>My account</h2>
+        {phoneError && <p className="error">{phoneError}</p>}
+        {phoneSaved && <p style={{ color: '#2e7d32' }}>Saved.</p>}
+        <label>
+          My phone number
+          <input
+            value={myPhone}
+            onChange={(e) => { setMyPhone(e.target.value); setPhoneSaved(false); }}
+            placeholder="e.g. 9876543210"
+          />
+        </label>
+        <p className="muted" style={{ marginTop: -4 }}>
+          Set this once to sign in from the "OTP (shop owner / admin)" tab on the login page, instead of only
+          email/password.
+        </p>
+        <div className="form-actions">
+          <button type="submit" disabled={savingPhone}>{savingPhone ? 'Saving...' : 'Save phone number'}</button>
+        </div>
+      </form>
+
       <form className="card form" onSubmit={handleSave} style={{ maxWidth: 520 }}>
         <h2>SMS API</h2>
         {error && <p className="error">{error}</p>}
@@ -171,6 +251,39 @@ export default function Settings() {
           <input value={sms.senderId} onChange={(e) => change('senderId', e.target.value)} placeholder="e.g. MUNCHB" />
         </label>
 
+        {sms.provider === 'fast2sms' && (
+          <>
+            <label>
+              DLT Entity ID (optional)
+              <input value={sms.dltEntityId} onChange={(e) => change('dltEntityId', e.target.value)} placeholder="From your DLT platform (e.g. Airtel/Jio/Vodafone portal)" />
+            </label>
+            <label>
+              DLT Template ID (optional)
+              <input value={sms.dltTemplateId} onChange={(e) => change('dltTemplateId', e.target.value)} placeholder="Approved content template ID" />
+            </label>
+            <p className="muted" style={{ marginTop: -4 }}>
+              Leave these blank if you've already added your message content template in Fast2SMS's own DLT Manager —
+              Fast2SMS will match the entity ID and template ID automatically from the message text. Fill them in only
+              if you registered the template directly on your DLT platform and haven't synced it to Fast2SMS.
+            </p>
+          </>
+        )}
+
+        <label>
+          OTP message template
+          <textarea
+            rows={2}
+            value={sms.otpMessageTemplate}
+            onChange={(e) => change('otpMessageTemplate', e.target.value)}
+            placeholder="Your Munchbox OTP is {otp}. Valid for 5 minutes."
+          />
+        </label>
+        <p className="muted" style={{ marginTop: -4 }}>
+          Use <code>{'{otp}'}</code> where the code should go. For DLT (Fast2SMS/MSG91 in India) this text must match
+          your DLT-approved content template <strong>exactly</strong> — same wording, punctuation and spacing — or the
+          operator will silently drop the SMS even though Fast2SMS reports success.
+        </p>
+
         <div style={{ background: '#faf7f4', border: '1px solid var(--line)', borderRadius: 8, padding: '0.9rem', marginTop: 4 }}>
           <label style={{ marginBottom: 8 }}>
             Test this key by sending a real SMS
@@ -187,6 +300,48 @@ export default function Settings() {
           <p className="muted" style={{ marginTop: 6, marginBottom: 0 }}>
             Tests the key/provider above directly — works even before you hit Save, so you can catch a wrong key
             immediately instead of finding out when a customer's OTP doesn't arrive.
+          </p>
+        </div>
+
+        <h2 style={{ marginTop: 24 }}>Razorpay (online payments)</h2>
+        <p className="muted">
+          Get these from the <a href="https://dashboard.razorpay.com/app/keys" target="_blank" rel="noreferrer">Razorpay Dashboard</a> →
+          Settings → API Keys. Test keys (rzp_test_...) work immediately for trying it out; switch to Live keys once your
+          account is KYC-approved.
+        </p>
+
+        <label className="checkbox">
+          <input type="checkbox" checked={razorpay.enabled} onChange={(e) => changeRazorpay('enabled', e.target.checked)} />
+          Online payments enabled
+        </label>
+
+        <label>
+          Key ID
+          <input value={razorpay.keyId} onChange={(e) => changeRazorpay('keyId', e.target.value)} placeholder="rzp_test_xxxxxxxxxxxx" />
+        </label>
+
+        <label>
+          Key Secret
+          <input
+            type="password"
+            value={razorpay.keySecret}
+            onChange={(e) => changeRazorpay('keySecret', e.target.value)}
+            placeholder="Your Razorpay key secret"
+          />
+        </label>
+
+        <div style={{ background: '#faf7f4', border: '1px solid var(--line)', borderRadius: 8, padding: '0.9rem', marginTop: 4 }}>
+          <button type="button" className="btn-outline" onClick={handleTestRazorpay} disabled={testingRazorpay}>
+            {testingRazorpay ? 'Testing…' : '💳 Test connection'}
+          </button>
+          {testRazorpayResult && (
+            <p style={{ color: testRazorpayResult.ok ? '#2e7d32' : '#c62828', fontSize: '0.85rem', marginTop: 8, marginBottom: 0 }}>
+              {testRazorpayResult.ok ? '✅ ' : '❌ '}{testRazorpayResult.message}
+            </p>
+          )}
+          <p className="muted" style={{ marginTop: 6, marginBottom: 0 }}>
+            Creates a real ₹1 test order with the keys above (works even before you hit Save), so a typo'd key is caught
+            here instead of at a customer's checkout.
           </p>
         </div>
 

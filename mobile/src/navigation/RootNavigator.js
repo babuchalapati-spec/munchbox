@@ -72,12 +72,14 @@ const deliveryScreens = {
   NearbyDeliveries: { component: NearbyDeliveriesScreen, headerShown: false },
   DeliveryOrderDetail: { component: DeliveryOrderDetailScreen, title: 'Delivery' },
   Earnings: { component: EarningsScreen, title: 'Earnings' },
+  RazorpayCheckout: { component: RazorpayCheckoutScreen, title: 'Payment' },
   Chat: { component: ChatScreen, title: 'Chat' },
 };
 
 const shopOwnerScreens = {
   ShopOwner: { component: ShopOwnerScreen, headerShown: false },
   Earnings: { component: EarningsScreen, title: 'Earnings' },
+  RazorpayCheckout: { component: RazorpayCheckoutScreen, title: 'Payment' },
   Chat: { component: ChatScreen, title: 'Chat' },
 };
 

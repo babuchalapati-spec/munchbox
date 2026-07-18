@@ -30,6 +30,8 @@ const {
   requestTopUp,
   reviewTopUp,
   listPendingTopUps,
+  createWalletTopUpOrder,
+  verifyWalletTopUp,
 } = require('../controllers/ledgerController');
 const { protect, protectViaHeaderOrQuery, adminOnly } = require('../middleware/auth');
 const asyncHandler = require('../middleware/asyncHandler');
@@ -55,6 +57,9 @@ router.get('/ledger/pdf', protectViaHeaderOrQuery, asyncHandler(exportLedgerPdf)
 router.post('/ledger', protect, adminOnly, asyncHandler(createLedgerEntry));
 // UPI balance top-up: shop/partner submits payment → admin confirms → balance credited.
 router.post('/ledger/topup', protect, asyncHandler(requestTopUp));
+// Razorpay balance top-up: instant credit once payment is verified, no admin step needed.
+router.post('/ledger/topup/razorpay/order', protect, asyncHandler(createWalletTopUpOrder));
+router.post('/ledger/topup/razorpay/verify', protect, asyncHandler(verifyWalletTopUp));
 router.get('/ledger/topups/pending', protect, adminOnly, asyncHandler(listPendingTopUps));
 router.put('/ledger/topups/:id/review', protect, adminOnly, asyncHandler(reviewTopUp));
 router.post('/delivery-accounts', protect, adminOnly, asyncHandler(createDeliveryAccount));

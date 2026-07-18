@@ -239,6 +239,7 @@ export default function Checkout() {
         <div className="tab-row">
           <button className={`tab ${paymentMethod === 'COD' ? 'active' : ''}`} onClick={() => setPaymentMethod('COD')}>💵 Cash on Delivery</button>
           <button className={`tab ${paymentMethod === 'upi' ? 'active' : ''}`} onClick={() => setPaymentMethod('upi')}>📱 Pay via UPI</button>
+          <button className={`tab ${paymentMethod === 'online' ? 'active' : ''}`} onClick={() => setPaymentMethod('online')}>💳 Pay online</button>
         </div>
 
         {paymentMethod === 'upi' && (

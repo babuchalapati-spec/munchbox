@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, Linking, Alert } from 'react-native';
-import { WebView } from 'react-native-webview';
 import { getOrder, rateOrder } from '../api/orders';
+import BikeMap from '../components/BikeMap';
 import { colors } from '../theme';
 
 // Tappable 1-5 star row.
@@ -27,13 +27,6 @@ const STATUS_LABELS = {
   delivered: 'Delivered',
   cancelled: 'Cancelled',
 };
-
-// OpenStreetMap's official embeddable map with a marker — no API key needed.
-function osmEmbedUrl(lat, lng) {
-  const d = 0.008; // bounding-box padding (~1km)
-  const bbox = `${lng - d},${lat - d},${lng + d},${lat + d}`;
-  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lng}`;
-}
 
 export default function OrderTrackingScreen({ route, navigation }) {
   const { orderId } = route.params;
@@ -142,19 +135,7 @@ export default function OrderTrackingScreen({ route, navigation }) {
           <Text style={styles.mapTitle}>Live location</Text>
           {order.currentLocation ? (
             <>
-              <View style={styles.map}>
-                <WebView
-                  source={{ uri: osmEmbedUrl(order.currentLocation.lat, order.currentLocation.lng) }}
-                  style={{ flex: 1 }}
-                  scrollEnabled={false}
-                  startInLoadingState
-                  renderLoading={() => (
-                    <View style={styles.mapLoading}>
-                      <ActivityIndicator color={colors.primary} />
-                    </View>
-                  )}
-                />
-              </View>
+              <BikeMap bike={order.currentLocation} destination={order.deliveryLocation} height={220} />
               <Text style={styles.mapMeta}>
                 Last updated: {new Date(order.currentLocation.updatedAt).toLocaleTimeString()}
               </Text>

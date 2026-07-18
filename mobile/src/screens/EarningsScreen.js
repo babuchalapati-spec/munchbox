@@ -3,6 +3,7 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { listLedger, getLedgerPdfUrl } from '../api/ledger';
 import { useAuth } from '../context/AuthContext';
+import WalletTopUp from '../components/WalletTopUp';
 import { colors } from '../theme';
 
 const KIND_ICON = { tip: '🎉', commission: '➖', deposit: '💰', adjustment: '⚙️' };
@@ -10,7 +11,7 @@ const KIND_ICON = { tip: '🎉', commission: '➖', deposit: '💰', adjustment:
 // Credits and debits for whoever is logged in — a delivery partner sees their tips
 // and per-delivery commission; a shop owner sees their platform commission per
 // order and their UPI top-ups. Same screen, same clear balance either way.
-export default function EarningsScreen() {
+export default function EarningsScreen({ navigation }) {
   const { user } = useAuth();
   const isDelivery = user?.role === 'delivery';
   const [balance, setBalance] = useState(0);
@@ -89,6 +90,8 @@ export default function EarningsScreen() {
           <TouchableOpacity style={styles.pdfButton} onPress={downloadStatement}>
             <Text style={styles.pdfButtonText}>📄 Download statement (PDF)</Text>
           </TouchableOpacity>
+
+          {isDelivery && <WalletTopUp navigation={navigation} onDone={load} />}
 
           <Text style={styles.sectionTitle}>Activity</Text>
         </>

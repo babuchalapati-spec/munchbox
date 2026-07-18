@@ -1,5 +1,5 @@
 const express = require('express');
-const { getSettings, getPaymentInfo, updateSettings, publishApk, testSms } = require('../controllers/settingsController');
+const { getSettings, getPaymentInfo, updateSettings, publishApk, testSms, testRazorpay } = require('../controllers/settingsController');
 const { protect, adminOnly } = require('../middleware/auth');
 const asyncHandler = require('../middleware/asyncHandler');
 const upload = require('../middleware/upload');
@@ -12,5 +12,6 @@ router.get('/', protect, adminOnly, asyncHandler(getSettings));
 router.put('/', protect, adminOnly, asyncHandler(updateSettings));
 router.post('/publish-apk', protect, adminOnly, upload.single('apk'), asyncHandler(publishApk));
 router.post('/test-sms', protect, adminOnly, asyncHandler(testSms));
+router.post('/test-razorpay', protect, adminOnly, asyncHandler(testRazorpay));
 
 module.exports = router;

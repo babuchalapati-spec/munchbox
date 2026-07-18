@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,13 @@ export default function OtpLoginScreen({navigation}) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => setResendCooldown((s) => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   async function doPasswordLogin() {
     if (!phone || !password) {
@@ -52,8 +59,23 @@ export default function OtpLoginScreen({navigation}) {
     try {
       await requestOtp(phone, name, referralCode);
       setStep('otp');
+      setResendCooldown(30);
     } catch (err) {
       setError(err.response?.data?.message || 'Could not send OTP');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resendOtp() {
+    if (resendCooldown > 0 || busy) return;
+    setError('');
+    setBusy(true);
+    try {
+      await requestOtp(phone, name, referralCode);
+      setResendCooldown(30);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not resend OTP');
     } finally {
       setBusy(false);
     }
@@ -185,6 +207,11 @@ export default function OtpLoginScreen({navigation}) {
               <Text style={styles.buttonText}>Verify & continue</Text>
             )}
           </TouchableOpacity>
+          <TouchableOpacity onPress={resendOtp} disabled={resendCooldown > 0 || busy}>
+            <Text style={[styles.link, (resendCooldown > 0 || busy) && styles.linkDisabled]}>
+              {resendCooldown > 0 ? `Resend OTP in ${resendCooldown}s` : 'Resend OTP'}
+            </Text>
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => setStep('phone')}>
             <Text style={styles.link}>Change number</Text>
           </TouchableOpacity>
@@ -214,11 +241,14 @@ export default function OtpLoginScreen({navigation}) {
 }
 
 const styles = StyleSheet.create({
+  
   container: {
     flex: 1,
     backgroundColor: colors.bg,
   },
   scrollContent: {
+
+
     flexGrow: 1,
   },
   hero: {
@@ -310,5 +340,6 @@ const styles = StyleSheet.create({
   },
   buttonText: {color: '#fff', fontWeight: '600'},
   link: {color: colors.primary, textAlign: 'center', marginTop: 16},
+  linkDisabled: {color: colors.muted},
   error: {color: '#c62828', textAlign: 'center', marginBottom: 12},
 });

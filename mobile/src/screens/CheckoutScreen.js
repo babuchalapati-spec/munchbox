@@ -366,6 +366,13 @@ export default function CheckoutScreen({navigation}) {
             📱 Pay via UPI
           </Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tipChip, paymentMethod === 'online' && styles.tipChipActive]}
+          onPress={() => setPaymentMethod('online')}>
+          <Text style={[styles.tipChipText, paymentMethod === 'online' && styles.tipChipTextActive]}>
+            💳 Pay online
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {paymentMethod === 'upi' && (

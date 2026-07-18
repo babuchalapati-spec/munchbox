@@ -7,9 +7,9 @@ import { listProducts, createProduct, updateProduct, deleteProduct } from '../ap
 import { getShop } from '../api/shops';
 import { uploadImage } from '../api/upload';
 import DeliveryTrackingMap from '../components/DeliveryTrackingMap';
-import { listLedger, getPaymentInfo, requestTopUp } from '../api/ledger';
-import { Linking } from 'react-native';
+import { listLedger } from '../api/ledger';
 import { imageUri } from '../api/client';
+import WalletTopUp from '../components/WalletTopUp';
 import { colors } from '../theme';
 
 const CATEGORIES = ['Cake', 'Food', 'Catering'];
@@ -41,7 +41,6 @@ export default function ShopOwnerScreen({ navigation }) {
   const [busyId, setBusyId] = useState(null);
   const [newItem, setNewItem] = useState({ name: '', category: 'Cake', basePrice: '', addOns: '', image: null, imageLink: '', isVeg: true, eggless: false, cakeType: 'Cake' });
   const [adding, setAdding] = useState(false);
-  const [topUp, setTopUp] = useState({ amount: '', reference: '', open: false, busy: false });
   const [editingItemId, setEditingItemId] = useState(null);
   const [editDraft, setEditDraft] = useState({ name: '', basePrice: '' });
   const [editImage, setEditImage] = useState(null);
@@ -149,54 +148,6 @@ export default function ShopOwnerScreen({ navigation }) {
         // ignore: the item is saved; the list will refresh on next load
       }
       Alert.alert('Item added', 'Your item is saved and is now available to customers. Turn it off anytime if you want to hide it.');
-    }
-  }
-
-  // Opens the shop owner's UPI app (GPay/PhonePe/Paytm) to pay the admin the advance.
-  async function payByUpi() {
-    const amount = Number(topUp.amount);
-    if (!amount || amount <= 0) {
-      Alert.alert('Enter amount', 'How much advance do you want to add?');
-      return;
-    }
-    try {
-      const info = await getPaymentInfo();
-      if (!info?.upiId) {
-        Alert.alert('UPI not set up', 'The admin has not added a UPI ID yet. Please contact the admin.');
-        return;
-      }
-      const url =
-        `upi://pay?pa=${encodeURIComponent(info.upiId)}` +
-        `&pn=${encodeURIComponent(info.payeeName || 'Munchbox')}` +
-        `&am=${amount}&cu=INR` +
-        `&tn=${encodeURIComponent('Munchbox shop advance')}`;
-      const supported = await Linking.canOpenURL(url);
-      if (!supported) {
-        Alert.alert('No UPI app', `Pay ₹${amount} to UPI ID:\n\n${info.upiId}\n\nThen enter the reference number below.`);
-        return;
-      }
-      await Linking.openURL(url);
-    } catch (err) {
-      Alert.alert('Error', 'Could not open your UPI app. Pay the admin and enter the reference below.');
-    }
-  }
-
-  // After paying, the shop submits the UPI reference; admin confirms and credits it.
-  async function submitTopUp() {
-    const amount = Number(topUp.amount);
-    if (!amount || amount <= 0) {
-      Alert.alert('Enter amount', 'Enter the amount you paid.');
-      return;
-    }
-    setTopUp((s) => ({ ...s, busy: true }));
-    try {
-      const res = await requestTopUp(amount, topUp.reference.trim());
-      setTopUp({ amount: '', reference: '', open: false, busy: false });
-      await load();
-      Alert.alert('Payment submitted', res.message || 'The admin will confirm and credit your balance.');
-    } catch (err) {
-      Alert.alert('Could not submit', err.response?.data?.message || 'Try again');
-      setTopUp((s) => ({ ...s, busy: false }));
     }
   }
 
@@ -366,39 +317,7 @@ export default function ShopOwnerScreen({ navigation }) {
           </Text>
         ) : null}
 
-        {!topUp.open ? (
-          <TouchableOpacity style={styles.readyBtn} onPress={() => setTopUp((s) => ({ ...s, open: true }))}>
-            <Text style={styles.readyBtnText}>＋ Add balance (UPI)</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={styles.addBox}>
-            <TextInput
-              style={styles.addInput}
-              placeholder="Amount ₹ (e.g. 1000)"
-              keyboardType="number-pad"
-              value={topUp.amount}
-              onChangeText={(v) => setTopUp((s) => ({ ...s, amount: v.replace(/[^0-9]/g, '') }))}
-            />
-            <TouchableOpacity style={styles.readyBtn} onPress={payByUpi}>
-              <Text style={styles.readyBtnText}>💳 Pay ₹{topUp.amount || '0'} via UPI</Text>
-            </TouchableOpacity>
-            <Text style={styles.muted}>After paying, enter the UPI reference number and submit:</Text>
-            <TextInput
-              style={styles.addInput}
-              placeholder="UPI reference / transaction ID"
-              value={topUp.reference}
-              onChangeText={(v) => setTopUp((s) => ({ ...s, reference: v }))}
-            />
-            <View style={styles.addRow}>
-              <TouchableOpacity style={[styles.assignBtn, { flex: 1 }]} onPress={() => setTopUp({ amount: '', reference: '', open: false, busy: false })}>
-                <Text style={styles.assignBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.addBtn} onPress={submitTopUp} disabled={topUp.busy}>
-                {topUp.busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.addBtnText}>Submit payment</Text>}
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
+        <WalletTopUp navigation={navigation} onDone={load} />
       </View>
 
       <View style={styles.card}>

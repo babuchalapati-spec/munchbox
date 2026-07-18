@@ -21,3 +21,8 @@ export async function testSms(payload) {
   const { data } = await client.post('/settings/test-sms', payload);
   return data;
 }
+
+export async function testRazorpay(payload) {
+  const { data } = await client.post('/settings/test-razorpay', payload);
+  return data;
+}
