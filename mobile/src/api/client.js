@@ -13,6 +13,7 @@ export const DEFAULT_API_URL = 'http://192.168.1.8:5001/api';
 const SEED_HOSTS = [
   'http://192.168.1.7:5001/api',
   'http://192.168.1.8:5001/api',
+  'http://192.168.1.9:5001/api',
   'http://10.23.21.199:5001/api',
 ];
 
