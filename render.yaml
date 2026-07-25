@@ -22,7 +22,7 @@ services:
         sync: false
       - key: CLIENT_URL
         sync: false
-      # Must be set to the service's public URL (https://munchbox-backend.onrender.com).
+      # Must be set to the service's public URL (https://nirman-4vyy.onrender.com).
       # It's what /api/app/version puts in the APK download links, so leaving it unset
       # hands phones a link built from whatever Host header the request arrived with.
       - key: PUBLIC_BASE_URL

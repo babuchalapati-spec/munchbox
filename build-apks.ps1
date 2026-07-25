@@ -69,7 +69,7 @@ foreach ($flavor in $targets) {
 Write-Host ''
 Write-Host 'Done. The install page now serves the new builds:' -ForegroundColor Cyan
 Write-Host '  local  : http://localhost:5001/download'
-Write-Host '  public : https://munchbox-backend.onrender.com/download'
+Write-Host '  public : https://nirman-4vyy.onrender.com/download'
 Write-Host ''
 Write-Host 'Note: backend\downloads is gitignored, so a Render deploy does not carry these' -ForegroundColor DarkGray
 Write-Host 'APKs. Upload them once from the dashboard: Admin > Settings > Publish APK.' -ForegroundColor DarkGray

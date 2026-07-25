@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // — mobile data, someone else's WiFi, another city — with nothing to configure. The LAN
 // addresses below are only a fast path for phones sitting on the same WiFi as the dev
 // machine; if none of them answer, the app falls back to here.
-export const PUBLIC_API_URL = 'https://munchbox-backend.onrender.com/api';
+export const PUBLIC_API_URL = 'https://nirman-4vyy.onrender.com/api';
 
 // A tunnel to the laptop, for testing an unreleased build from a phone that isn't on the
 // same WiFi. On the free ngrok plan this URL is regenerated every time the tunnel starts,
