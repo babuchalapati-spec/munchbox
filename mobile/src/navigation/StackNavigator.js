@@ -8,6 +8,16 @@ export function useNavigation() {
   return useContext(NavigationContext);
 }
 
+function MissingScreen() {
+  return (
+    <View style={styles.missing}>
+      <Text style={styles.missingText}>
+        This section isn't part of this app. Install the Munchbox app for your role to use it.
+      </Text>
+    </View>
+  );
+}
+
 export default function StackNavigator({ screens, initialRouteName }) {
   const [stack, setStack] = useState([{ name: initialRouteName, params: undefined }]);
   const [navigation] = useState(() => ({
@@ -23,7 +33,13 @@ export default function StackNavigator({ screens, initialRouteName }) {
   }));
 
   const current = stack[stack.length - 1];
-  const screenConfig = screens[current.name];
+  // Each of the four apps ships a different subset of screens, so a navigate() to one
+  // this build doesn't include is possible. Reading .component off undefined would take
+  // the whole app down; a back-able message keeps the user in control instead.
+  const screenConfig = screens[current.name] || {
+    title: 'Not available',
+    component: MissingScreen,
+  };
   const Component = screenConfig.component;
 
   return (
@@ -65,6 +81,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  missing: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
+  missingText: { color: colors.muted, textAlign: 'center', lineHeight: 20 },
   backButton: { width: 70 },
   backText: { color: colors.primary, fontWeight: '600' },
   title: { flex: 1, fontSize: 16, fontWeight: '700', color: colors.text, textAlign: 'center' },

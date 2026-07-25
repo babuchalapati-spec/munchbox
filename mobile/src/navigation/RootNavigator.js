@@ -1,6 +1,7 @@
 import React from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { LABEL_FOR_APP, ROLE_FOR_APP } from '../appType';
 import { colors } from '../theme';
 import StackNavigator from './StackNavigator';
 import BottomTabNavigator from './BottomTabNavigator';
@@ -32,14 +33,45 @@ import EarningsScreen from '../screens/EarningsScreen';
 import RazorpayCheckoutScreen from '../screens/RazorpayCheckoutScreen';
 import HelpChatScreen from '../screens/HelpChatScreen';
 import PaymentHistoryScreen from '../screens/PaymentHistoryScreen';
+import AdminScreen from '../screens/AdminScreen';
 
-const authScreens = {
-  OtpLogin: { component: OtpLoginScreen, headerShown: false },
+// Every app can always reach these two: password reset, and the server address screen
+// (the way out when a phone is on a network the backend isn't reachable from).
+const sharedAuthScreens = {
   ForgotPassword: { component: ForgotPasswordScreen, title: 'Reset password' },
-  Register: { component: RegisterScreen, title: 'Create account' },
-  DeliveryRegister: { component: DeliveryRegisterScreen, title: 'Delivery partner' },
-  ShopLogin: { component: ShopLoginScreen, headerShown: false },
   ServerSettings: { component: ServerSettingsScreen, title: 'Server settings' },
+};
+
+// Sign-in screens per app. The four APKs are single-role, so each one offers only its
+// own way in — no "I'm a delivery partner" cross-links to a role this app can't run.
+const authScreensByApp = {
+  customer: {
+    OtpLogin: { component: OtpLoginScreen, headerShown: false },
+    Register: { component: RegisterScreen, title: 'Create account' },
+    ...sharedAuthScreens,
+  },
+  partner: {
+    OtpLogin: { component: OtpLoginScreen, headerShown: false },
+    DeliveryRegister: { component: DeliveryRegisterScreen, title: 'Become a partner' },
+    ...sharedAuthScreens,
+  },
+  shop: {
+    ShopLogin: { component: ShopLoginScreen, headerShown: false },
+    ...sharedAuthScreens,
+  },
+  // The admin dashboard does its own login inside the WebView, so the admin app has
+  // no native sign-in step at all.
+  admin: {
+    Admin: { component: AdminScreen, headerShown: false },
+    ...sharedAuthScreens,
+  },
+};
+
+const initialAuthRoute = {
+  customer: 'OtpLogin',
+  partner: 'OtpLogin',
+  shop: 'ShopLogin',
+  admin: 'Admin',
 };
 
 const customerTabs = [
@@ -83,19 +115,55 @@ const shopOwnerScreens = {
   Chat: { component: ChatScreen, title: 'Chat' },
 };
 
-export default function RootNavigator() {
-  const { user, loading } = useAuth();
+// Shown when someone signs in with an account this app isn't for — e.g. a delivery
+// account on the customer app. Without it they'd land on a screen set their role has
+// no data for and see empty lists instead of an explanation.
+function WrongAppScreen({ appType, role, onLogout }) {
+  return (
+    <View style={styles.centered}>
+      <Text style={styles.wrongTitle}>Wrong app for this account</Text>
+      <Text style={styles.wrongText}>
+        This is the {LABEL_FOR_APP[appType]?.toLowerCase()} app, but you signed in with a{' '}
+        {LABEL_FOR_APP[Object.keys(ROLE_FOR_APP).find((k) => ROLE_FOR_APP[k] === role)]?.toLowerCase() || role}{' '}
+        account. Install the matching Munchbox app and sign in there.
+      </Text>
+      <TouchableOpacity style={styles.wrongBtn} onPress={onLogout}>
+        <Text style={styles.wrongBtnText}>Sign out</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+export default function RootNavigator({ appType = 'customer' }) {
+  const { user, loading, logout } = useAuth();
+  const expectedRole = ROLE_FOR_APP[appType] || 'customer';
 
   if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }}>
+      <View style={styles.centered}>
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
+  // The admin app is the dashboard in a WebView, which handles its own session — it
+  // never uses the native auth state at all.
+  if (appType === 'admin') {
+    return <StackNavigator key="admin" screens={authScreensByApp.admin} initialRouteName="Admin" />;
+  }
+
   if (!user) {
-    return <StackNavigator key="auth" screens={authScreens} initialRouteName="OtpLogin" />;
+    return (
+      <StackNavigator
+        key="auth"
+        screens={authScreensByApp[appType] || authScreensByApp.customer}
+        initialRouteName={initialAuthRoute[appType] || 'OtpLogin'}
+      />
+    );
+  }
+
+  if (user.role !== expectedRole) {
+    return <WrongAppScreen appType={appType} role={user.role} onLogout={logout} />;
   }
 
   if (user.role === 'delivery') {
@@ -108,3 +176,11 @@ export default function RootNavigator() {
 
   return <BottomTabNavigator key="app" tabs={customerTabs} screens={customerScreens} initialTab="Home" />;
 }
+
+const styles = StyleSheet.create({
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg, padding: 24 },
+  wrongTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 10, textAlign: 'center' },
+  wrongText: { color: colors.muted, textAlign: 'center', lineHeight: 20, marginBottom: 22 },
+  wrongBtn: { backgroundColor: colors.primary, paddingHorizontal: 28, paddingVertical: 12, borderRadius: 10 },
+  wrongBtnText: { color: '#fff', fontWeight: '700' },
+});

@@ -11,10 +11,16 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import {useAuth} from '../context/AuthContext';
 import {requestOtp} from '../api/auth';
+import {useAppType, ROLE_FOR_APP} from '../appType';
 import {colors, brandGradient} from '../theme';
 
 export default function OtpLoginScreen({navigation}) {
   const {loginWithOtp, login} = useAuth();
+  // This screen serves both the customer and the delivery-partner APK; the app it was
+  // built as decides which account role a sign-in must produce.
+  const appType = useAppType();
+  const isPartnerApp = appType === 'partner';
+  const expectedRole = ROLE_FOR_APP[appType] || 'customer';
   const [authMethod, setAuthMethod] = useState('otp'); // 'otp' | 'password'
   const [step, setStep] = useState('phone'); // 'phone' | 'otp'
   const [name, setName] = useState('');
@@ -40,7 +46,7 @@ export default function OtpLoginScreen({navigation}) {
     setError('');
     setBusy(true);
     try {
-      await login(phone, password, 'customer');
+      await login(phone, password, expectedRole);
       // On success the navigator switches to the app automatically.
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
@@ -89,7 +95,13 @@ export default function OtpLoginScreen({navigation}) {
     setError('');
     setBusy(true);
     try {
-      await loginWithOtp(phone, code, name, undefined, referralCode);
+      const res = await loginWithOtp(phone, code, name, expectedRole, referralCode);
+      // A phone number with no partner account yet has to finish partner sign-up
+      // (vehicle, licence, KYC) before there is anything to log in to.
+      if (res?.needsRegistration) {
+        navigation.navigate('DeliveryRegister', {phone});
+        return;
+      }
       // On success the navigator switches to the app automatically.
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid OTP');
@@ -110,7 +122,9 @@ export default function OtpLoginScreen({navigation}) {
 
       <View style={styles.formCard}>
         <View style={styles.roleBadge}>
-          <Text style={styles.roleBadgeText}>👤 Customer login</Text>
+          <Text style={styles.roleBadgeText}>
+            {isPartnerApp ? '🛵 Delivery partner login' : '👤 Customer login'}
+          </Text>
         </View>
 
         <View style={styles.tabRow}>
@@ -218,19 +232,29 @@ export default function OtpLoginScreen({navigation}) {
         </>
       )}
 
-        <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-          <Text style={styles.link}>New here? Create an account</Text>
-        </TouchableOpacity>
+        {/* Each APK is single-role, so the only sign-up offered here is this app's own.
+            Other roles have their own app to install rather than a link to a screen
+            this build doesn't ship. */}
+        {isPartnerApp ? (
+          <TouchableOpacity onPress={() => navigation.navigate('DeliveryRegister')}>
+            <Text style={styles.link}>New partner? Register with your documents</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+            <Text style={styles.link}>New here? Create an account</Text>
+          </TouchableOpacity>
+        )}
 
         <View style={styles.divider}>
-          <Text style={styles.dividerText}>Not a customer?</Text>
+          <Text style={styles.dividerText}>
+            {isPartnerApp ? 'Ordering food instead?' : 'Delivering or running a shop?'}
+          </Text>
         </View>
-        <TouchableOpacity style={styles.roleBtn} onPress={() => navigation.navigate('DeliveryRegister')}>
-          <Text style={styles.roleBtnText}>🛵  I'm a delivery partner</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.roleBtn} onPress={() => navigation.navigate('ShopLogin')}>
-          <Text style={styles.roleBtnText}>🏪  I'm a shop owner</Text>
-        </TouchableOpacity>
+        <Text style={styles.otherAppHint}>
+          {isPartnerApp
+            ? 'Install the Munchbox app to order.'
+            : 'Install Munchbox Partner or Munchbox Shop from the same download page.'}
+        </Text>
 
         <TouchableOpacity style={styles.serverLink} onPress={() => navigation.navigate('ServerSettings')}>
           <Text style={styles.serverLinkText}>⚙ Server settings</Text>
@@ -309,16 +333,7 @@ const styles = StyleSheet.create({
   fieldLabel: {color: colors.muted, fontSize: 13, marginBottom: 8},
   divider: {borderTopWidth: 1, borderTopColor: colors.border, marginTop: 24, marginBottom: 12, alignItems: 'center'},
   dividerText: {color: colors.muted, fontSize: 12, backgroundColor: colors.bg, paddingHorizontal: 10, marginTop: -8},
-  roleBtn: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    borderRadius: 10,
-    padding: 14,
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  roleBtnText: {color: colors.text, fontWeight: '600'},
+  otherAppHint: {color: colors.muted, fontSize: 12, textAlign: 'center', lineHeight: 18},
   serverLink: {marginTop: 12, alignItems: 'center'},
   serverLinkText: {color: colors.muted, fontSize: 11},
   info: {color: colors.text, marginBottom: 8},

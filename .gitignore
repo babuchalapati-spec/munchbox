@@ -31,7 +31,12 @@ pwa/dev-dist/
 .DS_Store
 Thumbs.db
 
-# Logs
+# Logs — including the supervisor's output folder, which also holds the current
+# tunnel URL (machine-specific, regenerated on every start).
 npm-debug.log*
 yarn-error.log*
 *.log
+logs/
+
+# Third-party CLI binary — downloaded, not source (32MB). See README's ngrok note.
+tools/ngrok.exe

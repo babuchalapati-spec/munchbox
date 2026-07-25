@@ -56,6 +56,13 @@ export default function Settings() {
     updateMessage: '',
     mandatory: false,
   });
+  const [adminApp, setAdminApp] = useState({
+    latestVersionCode: 1,
+    latestVersionName: '1.0',
+    apkUrl: '',
+    updateMessage: '',
+    mandatory: false,
+  });
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
@@ -72,6 +79,7 @@ export default function Settings() {
         setApp((prev) => ({ ...prev, ...(s.app || {}) }));
         setPartnerApp((prev) => ({ ...prev, ...(s.partnerApp || {}) }));
         setShopApp((prev) => ({ ...prev, ...(s.shopApp || {}) }));
+        setAdminApp((prev) => ({ ...prev, ...(s.adminApp || {}) }));
       })
       .catch(() => setError('Could not load settings'))
       .finally(() => setLoading(false));
@@ -102,6 +110,11 @@ export default function Settings() {
     setSaved(false);
   }
 
+  function changeAdminApp(field, value) {
+    setAdminApp((a) => ({ ...a, [field]: value }));
+    setSaved(false);
+  }
+
   async function handleTestSms() {
     if (!testPhone.trim()) {
       setTestSmsResult({ ok: false, message: 'Enter a phone number to send the test to' });
@@ -123,12 +136,13 @@ export default function Settings() {
     e.preventDefault();
     setError('');
     try {
-      const updated = await updateSettings({ sms, razorpay, app, partnerApp, shopApp });
+      const updated = await updateSettings({ sms, razorpay, app, partnerApp, shopApp, adminApp });
       setSms(updated.sms);
       setRazorpay((prev) => ({ ...prev, ...(updated.razorpay || {}) }));
       setApp(updated.app);
       setPartnerApp(updated.partnerApp);
       setShopApp(updated.shopApp);
+      setAdminApp((prev) => ({ ...prev, ...(updated.adminApp || {}) }));
       setSaved(true);
     } catch (err) {
       setError(err.response?.data?.message || 'Save failed');
@@ -165,19 +179,20 @@ export default function Settings() {
       const formData = new FormData();
       formData.append('apk', apkFile);
       formData.append('appType', apkType);
-      const target = apkType === 'partner' ? partnerApp : apkType === 'shop' ? shopApp : app;
+      const setters = { customer: setApp, partner: setPartnerApp, shop: setShopApp, admin: setAdminApp };
+      const targets = { customer: app, partner: partnerApp, shop: shopApp, admin: adminApp };
+      const target = targets[apkType] || app;
       formData.append('versionCode', target.latestVersionCode);
       formData.append('versionName', target.latestVersionName);
       formData.append('updateMessage', target.updateMessage);
       formData.append('mandatory', String(target.mandatory));
       const result = await publishApk(formData);
-      if (apkType === 'partner') {
-        setPartnerApp((prev) => ({ ...prev, apkUrl: result.apkUrl, latestVersionCode: Number(partnerApp.latestVersionCode || 1), latestVersionName: partnerApp.latestVersionName || '1.0' }));
-      } else if (apkType === 'shop') {
-        setShopApp((prev) => ({ ...prev, apkUrl: result.apkUrl, latestVersionCode: Number(shopApp.latestVersionCode || 1), latestVersionName: shopApp.latestVersionName || '1.0' }));
-      } else {
-        setApp((prev) => ({ ...prev, apkUrl: result.apkUrl, latestVersionCode: Number(app.latestVersionCode || 1), latestVersionName: app.latestVersionName || '1.0' }));
-      }
+      (setters[apkType] || setApp)((prev) => ({
+        ...prev,
+        apkUrl: result.apkUrl,
+        latestVersionCode: Number(target.latestVersionCode || 1),
+        latestVersionName: target.latestVersionName || '1.0',
+      }));
       setPublishMessage(`Published ${result.fileName} and updated the download URL.`);
       setApkFile(null);
     } catch (err) {
@@ -449,6 +464,49 @@ export default function Settings() {
           Force shop update
         </label>
 
+        <h2 style={{ marginTop: 24 }}>Admin app auto-update</h2>
+        <p className="muted">
+          The Munchbox Admin APK — this dashboard in a native shell. Dashboard changes go live on a
+          refresh without a new APK; publish here only when the shell itself changes.
+          Admin builds check /api/app/version?type=admin.
+        </p>
+        <label>
+          Latest version code
+          <input
+            type="number"
+            value={adminApp.latestVersionCode}
+            onChange={(e) => changeAdminApp('latestVersionCode', e.target.value)}
+          />
+        </label>
+        <label>
+          Version name
+          <input
+            value={adminApp.latestVersionName}
+            onChange={(e) => changeAdminApp('latestVersionName', e.target.value)}
+            placeholder="1.1"
+          />
+        </label>
+        <label>
+          Admin APK download URL
+          <input
+            value={adminApp.apkUrl}
+            onChange={(e) => changeAdminApp('apkUrl', e.target.value)}
+            placeholder="http://<server>:5001/downloads/MunchboxAdmin.apk"
+          />
+        </label>
+        <label>
+          Update message
+          <input value={adminApp.updateMessage} onChange={(e) => changeAdminApp('updateMessage', e.target.value)} />
+        </label>
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={adminApp.mandatory}
+            onChange={(e) => changeAdminApp('mandatory', e.target.checked)}
+          />
+          Force admin update
+        </label>
+
         <div className="form-actions">
           <button type="submit">Save settings</button>
         </div>
@@ -466,6 +524,7 @@ export default function Settings() {
             <option value="customer">Customer app</option>
             <option value="shop">Shop app</option>
             <option value="partner">Partner app</option>
+            <option value="admin">Admin app</option>
           </select>
         </label>
 

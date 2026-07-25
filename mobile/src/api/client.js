@@ -1,20 +1,35 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// The address baked in at build time — the last-resort fallback if nothing else
-// responds. If testing on the Android emulator instead, use http://10.0.2.2:5001/api.
-export const DEFAULT_API_URL = 'http://192.168.1.8:5001/api';
+// The always-on public backend. This is what makes an installed APK work on ANY network
+// — mobile data, someone else's WiFi, another city — with nothing to configure. The LAN
+// addresses below are only a fast path for phones sitting on the same WiFi as the dev
+// machine; if none of them answer, the app falls back to here.
+export const PUBLIC_API_URL = 'https://munchbox-backend.onrender.com/api';
+
+// A tunnel to the laptop, for testing an unreleased build from a phone that isn't on the
+// same WiFi. On the free ngrok plan this URL is regenerated every time the tunnel starts,
+// so it is left empty here on purpose: start-munchbox.bat prints the current one, and it
+// is entered once under Server Settings (the app remembers it from then on).
+export const TUNNEL_API_URL = '';
+
+// The address used before anything has been probed. Public, so a fresh install on an
+// unknown network is never stuck.
+export const DEFAULT_API_URL = PUBLIC_API_URL;
 
 // Addresses seen before (home, office, wherever) — every address ever set via Server
 // Settings is remembered here, in addition to this hardcoded seed list. On each app
 // launch we test all of them at once and use whichever responds, so switching between
-// known WiFi networks (home <-> office) "just works" without manual reconfiguration —
-// only a brand-new, never-used network needs a one-time manual Server Settings entry.
+// known WiFi networks (home <-> office) "just works" without manual reconfiguration.
+// LAN addresses come first because on the dev WiFi they're faster and don't burn the
+// tunnel's data allowance; the public URL is last and is the one that always answers.
 const SEED_HOSTS = [
   'http://192.168.1.7:5001/api',
   'http://192.168.1.8:5001/api',
   'http://192.168.1.9:5001/api',
   'http://10.23.21.199:5001/api',
+  ...(TUNNEL_API_URL ? [TUNNEL_API_URL] : []),
+  PUBLIC_API_URL,
 ];
 
 const STORAGE_KEY = 'server_url_override';
@@ -34,9 +49,11 @@ export function imageUri(url) {
   return `${API_URL.replace('/api', '')}${url}`;
 }
 
-// 30s timeout: long enough for a slow phone/Wi-Fi to get a response, short enough that
-// an unreachable server fails to the login screen instead of hanging forever.
-const client = axios.create({ baseURL: API_URL, timeout: 30000 });
+// 60s timeout. Long, on purpose: the free hosting tier stops the server when it's idle
+// and the first request after that has to wait for it to boot (up to ~50s). A 30s
+// timeout turned that wake-up into a visible "server unreachable" error on the first
+// open of the day. Still bounded, so a genuinely dead server fails instead of hanging.
+const client = axios.create({ baseURL: API_URL, timeout: 60000 });
 
 client.interceptors.request.use(async (config) => {
   const token = await AsyncStorage.getItem('cake_token');
@@ -63,9 +80,9 @@ async function rememberHost(url) {
   await AsyncStorage.setItem(KNOWN_HOSTS_KEY, JSON.stringify(next));
 }
 
-function probe(url) {
+function probe(url, timeout = HEALTH_PROBE_TIMEOUT_MS) {
   return axios
-    .get(`${url.replace(/\/api\/?$/, '')}/api/health`, { timeout: HEALTH_PROBE_TIMEOUT_MS })
+    .get(`${url.replace(/\/api\/?$/, '')}/api/health`, { timeout })
     .then((res) => (res.data?.status === 'ok' ? url : null))
     .catch(() => null);
 }
@@ -73,10 +90,15 @@ function probe(url) {
 // Tries every known server address at once and returns the first one that actually
 // answers — this is what makes "walk into the office, open the app" work without
 // anyone touching Server Settings, as long as that network's address was used before.
+//
+// The public URL is deliberately not probed: free hosting sleeps when idle and can take
+// most of a minute to wake, far longer than it's worth blocking the splash screen for.
+// It's the answer whenever nothing on the local network responds, so probing it would
+// only slow down the case where the answer is already known.
 async function autoDetectServerUrl() {
-  const hosts = await getKnownHosts();
-  const results = await Promise.all(hosts.map(probe));
-  return results.find(Boolean) || null;
+  const hosts = (await getKnownHosts()).filter((h) => h !== PUBLIC_API_URL);
+  const results = await Promise.all(hosts.map((h) => probe(h)));
+  return results.find(Boolean) || PUBLIC_API_URL;
 }
 
 // Call once at app startup (see App.js) to pick the right server before any screen

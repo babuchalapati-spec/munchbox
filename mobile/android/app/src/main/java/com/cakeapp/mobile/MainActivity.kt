@@ -10,8 +10,11 @@ class MainActivity : ReactActivity() {
   /**
    * Returns the name of the main component registered from JavaScript. This is used to schedule
    * rendering of the component.
+   *
+   * The value comes from the product flavor (see resValue in app/build.gradle), so the same
+   * Kotlin builds four apps: MunchboxCustomer, MunchboxPartner, MunchboxShop, MunchboxAdmin.
    */
-  override fun getMainComponentName(): String = "MunchboxMobile"
+  override fun getMainComponentName(): String = getString(R.string.main_component_name)
 
   /**
    * Returns the instance of the [ReactActivityDelegate]. We use [DefaultReactActivityDelegate]

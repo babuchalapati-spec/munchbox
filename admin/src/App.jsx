@@ -23,7 +23,7 @@ import LiveMap from './pages/Admin/LiveMap';
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />

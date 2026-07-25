@@ -79,8 +79,40 @@ android {
         applicationId "com.cakeapp.mobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 42
-        versionName "17.10.1"
+        versionCode 43
+        versionName "18.0.0"
+    }
+
+    // Four separate apps out of one codebase. Each flavor gets its own applicationId
+    // so all four can be installed side by side on the same phone, and its own
+    // main_component_name — the JS component index.js registers for that role, which
+    // is what makes the partner APK open the delivery screens instead of the shop.
+    flavorDimensions "role"
+    productFlavors {
+        customer {
+            dimension "role"
+            applicationId "com.munchbox.customer"
+            resValue "string", "app_name", "Munchbox"
+            resValue "string", "main_component_name", "MunchboxCustomer"
+        }
+        partner {
+            dimension "role"
+            applicationId "com.munchbox.partner"
+            resValue "string", "app_name", "Munchbox Partner"
+            resValue "string", "main_component_name", "MunchboxPartner"
+        }
+        shop {
+            dimension "role"
+            applicationId "com.munchbox.shop"
+            resValue "string", "app_name", "Munchbox Shop"
+            resValue "string", "main_component_name", "MunchboxShop"
+        }
+        admin {
+            dimension "role"
+            applicationId "com.munchbox.admin"
+            resValue "string", "app_name", "Munchbox Admin"
+            resValue "string", "main_component_name", "MunchboxAdmin"
+        }
     }
     signingConfigs {
         debug {

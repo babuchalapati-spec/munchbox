@@ -5,9 +5,13 @@ import { CartProvider } from './src/context/CartContext';
 import RootNavigator from './src/navigation/RootNavigator';
 import { watchForUpdates } from './src/updateCheck';
 import { loadServerUrlOverride } from './src/api/client';
+import { AppTypeProvider } from './src/appType';
 import { colors } from './src/theme';
 
-export default function App() {
+// `appType` is set by index.js from the Android product flavor and is what makes this
+// build the customer, partner, shop or admin app. It decides which screens exist and
+// which APK the update check looks for.
+export default function App({ appType = 'customer' }) {
   // Applies any saved server-address override (see ServerSettingsScreen) before any
   // screen makes its first API call, so a stale build-time address never gets used.
   const [serverReady, setServerReady] = useState(false);
@@ -18,9 +22,9 @@ export default function App() {
 
   useEffect(() => {
     if (!serverReady) return undefined;
-    const stopWatching = watchForUpdates();
+    const stopWatching = watchForUpdates(appType);
     return () => stopWatching();
-  }, [serverReady]);
+  }, [serverReady, appType]);
 
   if (!serverReady) {
     return (
@@ -31,10 +35,12 @@ export default function App() {
   }
 
   return (
-    <AuthProvider>
-      <CartProvider>
-        <RootNavigator />
-      </CartProvider>
-    </AuthProvider>
+    <AppTypeProvider appType={appType}>
+      <AuthProvider>
+        <CartProvider>
+          <RootNavigator appType={appType} />
+        </CartProvider>
+      </AuthProvider>
+    </AppTypeProvider>
   );
 }

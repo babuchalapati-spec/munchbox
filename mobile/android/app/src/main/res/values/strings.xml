@@ -1,3 +1,5 @@
 <resources>
-    <string name="app_name">Munchbox</string>
+    <!-- app_name and main_component_name are deliberately not declared here: each
+         product flavor supplies its own via resValue in app/build.gradle, and a
+         value in this file would collide with the generated one. -->
 </resources>

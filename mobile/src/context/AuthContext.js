@@ -9,10 +9,15 @@ import {
   getMe,
 } from '../api/auth';
 import {checkForUpdate} from '../updateCheck';
+import {useAppType} from '../appType';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({children}) {
+  // Which APK this is — the update check has to ask for this app's build, not the one
+  // implied by the account's role (an admin signing in must not be offered the
+  // customer APK).
+  const appType = useAppType();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [needsPasswordSetup, setNeedsPasswordSetup] = useState(false);
@@ -27,14 +32,14 @@ export function AuthProvider({children}) {
       try {
         const me = await getMe();
         setUser(me);
-        checkForUpdate(me.role === 'delivery' ? 'partner' : 'customer');
+        checkForUpdate(appType);
       } catch (err) {
         await AsyncStorage.removeItem('cake_token');
       } finally {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [appType]);
 
   // expectedRole keeps the customer/shop login screens strictly separate: the backend's
   // password-login endpoint doesn't care which app screen you're on, so without this a
@@ -53,7 +58,7 @@ export function AuthProvider({children}) {
     }
     await AsyncStorage.setItem('cake_token', data.token);
     setUser(data.user);
-    checkForUpdate(data.user.role === 'delivery' ? 'partner' : 'customer');
+    checkForUpdate(appType);
     return {user: data.user};
   }
 
@@ -69,14 +74,14 @@ export function AuthProvider({children}) {
     const {user: newUser, token} = await registerApi(payload);
     await AsyncStorage.setItem('cake_token', token);
     setUser(newUser);
-    checkForUpdate('customer');
+    checkForUpdate(appType);
   }
 
   async function registerDelivery(payload) {
     const {user: newUser, token} = await deliveryRegisterApi(payload);
     await AsyncStorage.setItem('cake_token', token);
     setUser(newUser);
-    checkForUpdate('partner');
+    checkForUpdate(appType);
     return newUser;
   }
 
@@ -90,7 +95,7 @@ export function AuthProvider({children}) {
     if (data.token) {
       await AsyncStorage.setItem('cake_token', data.token);
       setUser(data.user);
-      checkForUpdate(data.user.role === 'delivery' ? 'partner' : 'customer');
+      checkForUpdate(appType);
       return {user: data.user};
     }
     return {needsRegistration: Boolean(data.needsRegistration)};

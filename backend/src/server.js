@@ -67,6 +67,16 @@ app.use('/api/geo', geoRoutes);
 app.use('/api/finance', financeRoutes);
 app.use('/api/payments', paymentRoutes);
 
+// Serves the admin dashboard at /admin, with its own SPA fallback so a refresh on
+// /admin/orders doesn't 404. This is also what the Munchbox Admin APK loads in its
+// WebView, so an admin UI change reaches the phone on the next refresh — no new APK.
+// Built via `npm run build` in ../admin (base: '/admin/'); no-op until that exists.
+const adminDist = path.join(__dirname, '..', '..', 'admin', 'dist');
+if (fs.existsSync(adminDist)) {
+  app.use('/admin', express.static(adminDist));
+  app.get('/admin/*', (req, res) => res.sendFile(path.join(adminDist, 'index.html')));
+}
+
 // Serves the customer PWA (installable web app) as static files, with an SPA fallback
 // so client-side routes like /orders/123 don't 404 on refresh. Built via `npm run
 // build` in ../pwa — this block is a no-op until that build exists.
@@ -74,7 +84,12 @@ const pwaDist = path.join(__dirname, '..', '..', 'pwa', 'dist');
 if (fs.existsSync(pwaDist)) {
   app.use(express.static(pwaDist));
   app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/downloads')) {
+    if (
+      req.path.startsWith('/api') ||
+      req.path.startsWith('/uploads') ||
+      req.path.startsWith('/downloads') ||
+      req.path.startsWith('/admin')
+    ) {
       return next();
     }
     res.sendFile(path.join(pwaDist, 'index.html'));

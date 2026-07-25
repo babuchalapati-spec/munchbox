@@ -338,9 +338,9 @@ export default function ShopLoginScreen({ navigation }) {
         </>
       )}
 
-      <TouchableOpacity onPress={() => navigation.navigate('OtpLogin')}>
-        <Text style={styles.link}>← Back to customer login</Text>
-      </TouchableOpacity>
+      {/* No "back to customer login" here: this screen now ships only in the Munchbox
+          Shop app, which has no customer login to go back to. Customers install the
+          Munchbox app instead. */}
       <TouchableOpacity onPress={() => navigation.navigate('ServerSettings')} style={{ marginTop: 8 }}>
         <Text style={[styles.link, { color: colors.muted, fontSize: 11 }]}>⚙ Server settings</Text>
       </TouchableOpacity>

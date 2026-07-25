@@ -26,7 +26,7 @@ async function getPaymentInfo(req, res) {
 
 async function updateSettings(req, res) {
   const settings = await Settings.getSingleton();
-  const { sms, app, partnerApp, shopApp, payments, razorpay, finance, maps } = req.body;
+  const { sms, app, partnerApp, shopApp, adminApp, payments, razorpay, finance, maps } = req.body;
 
   if (payments) {
     if (!settings.payments) settings.payments = {};
@@ -54,30 +54,16 @@ async function updateSettings(req, res) {
     if (sms.enabled !== undefined) settings.sms.enabled = sms.enabled === true || sms.enabled === 'true';
   }
 
-  if (app) {
-    if (app.latestVersionCode !== undefined) settings.app.latestVersionCode = Number(app.latestVersionCode);
-    if (app.latestVersionName !== undefined) settings.app.latestVersionName = app.latestVersionName;
-    if (app.apkUrl !== undefined) settings.app.apkUrl = app.apkUrl;
-    if (app.updateMessage !== undefined) settings.app.updateMessage = app.updateMessage;
-    if (app.mandatory !== undefined) settings.app.mandatory = app.mandatory === true || app.mandatory === 'true';
-  }
-
-  if (partnerApp) {
-    if (!settings.partnerApp) settings.partnerApp = {};
-    if (partnerApp.latestVersionCode !== undefined) settings.partnerApp.latestVersionCode = Number(partnerApp.latestVersionCode);
-    if (partnerApp.latestVersionName !== undefined) settings.partnerApp.latestVersionName = partnerApp.latestVersionName;
-    if (partnerApp.apkUrl !== undefined) settings.partnerApp.apkUrl = partnerApp.apkUrl;
-    if (partnerApp.updateMessage !== undefined) settings.partnerApp.updateMessage = partnerApp.updateMessage;
-    if (partnerApp.mandatory !== undefined) settings.partnerApp.mandatory = partnerApp.mandatory === true || partnerApp.mandatory === 'true';
-  }
-
-  if (shopApp) {
-    if (!settings.shopApp) settings.shopApp = {};
-    if (shopApp.latestVersionCode !== undefined) settings.shopApp.latestVersionCode = Number(shopApp.latestVersionCode);
-    if (shopApp.latestVersionName !== undefined) settings.shopApp.latestVersionName = shopApp.latestVersionName;
-    if (shopApp.apkUrl !== undefined) settings.shopApp.apkUrl = shopApp.apkUrl;
-    if (shopApp.updateMessage !== undefined) settings.shopApp.updateMessage = shopApp.updateMessage;
-    if (shopApp.mandatory !== undefined) settings.shopApp.mandatory = shopApp.mandatory === true || shopApp.mandatory === 'true';
+  // The four published apps carry identical update settings, so they're applied by one
+  // loop rather than four copies that drift apart when a field is added.
+  for (const [key, incoming] of Object.entries({ app, partnerApp, shopApp, adminApp })) {
+    if (!incoming) continue;
+    if (!settings[key]) settings[key] = {};
+    if (incoming.latestVersionCode !== undefined) settings[key].latestVersionCode = Number(incoming.latestVersionCode);
+    if (incoming.latestVersionName !== undefined) settings[key].latestVersionName = incoming.latestVersionName;
+    if (incoming.apkUrl !== undefined) settings[key].apkUrl = incoming.apkUrl;
+    if (incoming.updateMessage !== undefined) settings[key].updateMessage = incoming.updateMessage;
+    if (incoming.mandatory !== undefined) settings[key].mandatory = incoming.mandatory === true || incoming.mandatory === 'true';
   }
 
   if (finance) {
@@ -159,13 +145,23 @@ async function publishApk(req, res) {
   const downloadsDir = path.join(__dirname, '..', '..', 'downloads');
   if (!fs.existsSync(downloadsDir)) fs.mkdirSync(downloadsDir, { recursive: true });
 
-  const targetName = appType === 'partner' ? 'MunchboxPartner.apk' : appType === 'shop' ? 'MunchboxShop.apk' : 'Munchbox.apk';
+  // Which of the four apps this upload replaces. Anything unrecognised is treated as
+  // the customer app, matching how the version endpoint resolves an unknown type.
+  const APK_TARGETS = {
+    customer: { file: 'Munchbox.apk', settingsKey: 'app' },
+    partner: { file: 'MunchboxPartner.apk', settingsKey: 'partnerApp' },
+    shop: { file: 'MunchboxShop.apk', settingsKey: 'shopApp' },
+    admin: { file: 'MunchboxAdmin.apk', settingsKey: 'adminApp' },
+  };
+  const target = APK_TARGETS[appType] || APK_TARGETS.customer;
+  const targetName = target.file;
   const targetPath = path.join(downloadsDir, targetName);
   fs.copyFileSync(req.file.path, targetPath);
   fs.unlinkSync(req.file.path);
 
   const settings = await Settings.getSingleton();
-  const targetApp = appType === 'partner' ? settings.partnerApp : appType === 'shop' ? settings.shopApp : settings.app;
+  if (!settings[target.settingsKey]) settings[target.settingsKey] = {};
+  const targetApp = settings[target.settingsKey];
   if (targetApp) {
     const currentVersionCode = Number(targetApp.latestVersionCode || 1);
     const requestedVersionCode = Number(versionCode);

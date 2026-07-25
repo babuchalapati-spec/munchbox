@@ -2,21 +2,30 @@ import {useEffect, useState} from 'react';
 import {Link} from 'react-router-dom';
 import client from '../api/client';
 
+// Four separate installs, one per role — each is its own APK with its own app icon, so
+// a phone can hold more than one of them at a time.
 const APPS = [
   {type: 'customer', icon: '🛍️', title: 'Customer App', desc: 'Order cakes, food and catering.'},
   {type: 'shop', icon: '🏪', title: 'Shop App', desc: 'For shop owners — manage orders, items and deliveries.'},
   {type: 'partner', icon: '🛵', title: 'Delivery Partner App', desc: 'For delivery partners — accept and deliver orders.'},
+  {type: 'admin', icon: '🛠️', title: 'Admin App', desc: 'For the Munchbox team — the full admin dashboard.'},
 ];
 
 export default function Download() {
   const [versions, setVersions] = useState({});
 
+  // One call for all four apps instead of four version calls — the same list the
+  // backend builds from its own APK filenames, so this page can't fall out of step.
   useEffect(() => {
-    APPS.forEach(({type}) => {
-      client.get('/app/version', {params: {type}})
-        .then(({data}) => setVersions((v) => ({...v, [type]: data.app})))
-        .catch(() => {});
-    });
+    client.get('/app/downloads')
+      .then(({data}) => {
+        const byType = {};
+        (data.apps || []).forEach((app) => {
+          byType[app.type] = app;
+        });
+        setVersions(byType);
+      })
+      .catch(() => {});
   }, []);
 
   return (
@@ -25,7 +34,7 @@ export default function Download() {
         <h2>Download Munchbox</h2>
       </div>
       <div className="page-pad" style={{flex: 1}}>
-        <p className="muted" style={{marginBottom: 16}}>Choose the app for your role. All three connect to the same Munchbox account system.</p>
+        <p className="muted" style={{marginBottom: 16}}>Choose the app for your role. All four connect to the same Munchbox account system, and each installs separately.</p>
         {APPS.map(({type, icon, title, desc}) => {
           const app = versions[type];
           return (

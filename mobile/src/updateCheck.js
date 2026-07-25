@@ -2,11 +2,24 @@ import {Alert, AppState, Linking} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import client from './api/client';
 
-// Bump this on every release; the backend advertises the latest build so the
-// app can prompt users to update automatically on launch.
-export const APP_VERSION_CODE = 42;
-const UPDATE_POLL_INTERVAL_MS = 60000;
+// Bump this on every release (and keep it in step with versionCode in
+// android/app/build.gradle); the backend advertises the latest build so the app can
+// prompt users to update automatically on launch. All four apps share one version
+// number — they are built from the same commit.
+export const APP_VERSION_CODE = 43;
+// Every install polls this endpoint, so the interval is a real traffic decision, not a
+// detail: at 60s each phone made ~43k requests a month, which alone blows past the free
+// tunnel/hosting request allowance. Six hours plus the on-foreground check below still
+// gets an update to users the same day.
+const UPDATE_POLL_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const LAST_NOTIFIED_VERSION_KEY = '@munchbox:lastNotifiedVersion';
+
+const APP_LABELS = {
+  customer: 'Munchbox',
+  partner: 'Munchbox Partner',
+  shop: 'Munchbox Shop',
+  admin: 'Munchbox Admin',
+};
 
 export async function checkForUpdate(appType = 'customer') {
   try {
@@ -29,7 +42,9 @@ export async function checkForUpdate(appType = 'customer') {
 
     await AsyncStorage.setItem(LAST_NOTIFIED_VERSION_KEY, String(latestVersionCode));
 
-    const message = latest.updateMessage || 'A new version of Munchbox is available and will be applied automatically.';
+    const message =
+      latest.updateMessage ||
+      `A new version of ${APP_LABELS[appType] || 'Munchbox'} is available and will be applied automatically.`;
 
     if (latest.mandatory) {
       Alert.alert('Update required', message, [{text: 'Update now', onPress: () => Linking.openURL(latest.apkUrl)}], {

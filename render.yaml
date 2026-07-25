@@ -3,9 +3,13 @@ services:
     name: munchbox-backend
     runtime: node
     rootDir: backend
-    # Installs backend deps, then builds the PWA (customer/shop/delivery web app) so
-    # the backend can serve it as static files at the same URL — see server.js.
-    buildCommand: npm install && cd ../pwa && npm install && npm run build
+    # Installs backend deps, then builds both web apps so the backend can serve them at
+    # the same URL — see server.js. The PWA answers at /, the admin dashboard at /admin
+    # (which is also what the Munchbox Admin APK loads in its WebView).
+    buildCommand: >-
+      npm install &&
+      cd ../pwa && npm install && npm run build &&
+      cd ../admin && npm install && npm run build
     startCommand: npm start
     envVars:
       - key: MONGO_URI
@@ -18,5 +22,8 @@ services:
         sync: false
       - key: CLIENT_URL
         sync: false
+      # Must be set to the service's public URL (https://munchbox-backend.onrender.com).
+      # It's what /api/app/version puts in the APK download links, so leaving it unset
+      # hands phones a link built from whatever Host header the request arrived with.
       - key: PUBLIC_BASE_URL
         sync: false
