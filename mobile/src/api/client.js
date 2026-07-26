@@ -1,28 +1,9 @@
-import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// The always-on public backend. This is what makes an installed APK work on ANY network
-// — mobile data, someone else's WiFi, another city — with nothing to configure. The LAN
-// addresses below are only a fast path for phones sitting on the same WiFi as the dev
-// machine; if none of them answer, the app falls back to here.
 export const PUBLIC_API_URL = 'https://nirman-4vyy.onrender.com/api';
-
-// A tunnel to the laptop, for testing an unreleased build from a phone that isn't on the
-// same WiFi. On the free ngrok plan this URL is regenerated every time the tunnel starts,
-// so it is left empty here on purpose: start-munchbox.bat prints the current one, and it
-// is entered once under Server Settings (the app remembers it from then on).
 export const TUNNEL_API_URL = '';
-
-// The address used before anything has been probed. Public, so a fresh install on an
-// unknown network is never stuck.
 export const DEFAULT_API_URL = PUBLIC_API_URL;
 
-// Addresses seen before (home, office, wherever) — every address ever set via Server
-// Settings is remembered here, in addition to this hardcoded seed list. On each app
-// launch we test all of them at once and use whichever responds, so switching between
-// known WiFi networks (home <-> office) "just works" without manual reconfiguration.
-// LAN addresses come first because on the dev WiFi they're faster and don't burn the
-// tunnel's data allowance; the public URL is last and is the one that always answers.
 const SEED_HOSTS = [
   'http://192.168.1.7:5001/api',
   'http://192.168.1.8:5001/api',
@@ -36,118 +17,186 @@ const STORAGE_KEY = 'server_url_override';
 const KNOWN_HOSTS_KEY = 'known_server_hosts';
 const HEALTH_PROBE_TIMEOUT_MS = 2500;
 
-// Mutable "current" URL. Starts as the default; updated by loadServerUrlOverride() on
-// app start and by setServerUrl() whenever the user changes it.
 export let API_URL = DEFAULT_API_URL;
 
-// Resolves an image reference to a displayable URI.
-// - Absolute links (https://...) are used as-is, so shops can paste an online image URL.
-// - Relative paths (/uploads/x.jpg) are served from the backend host.
 export function imageUri(url) {
   if (!url) return null;
   if (/^https?:\/\//i.test(url) || url.startsWith('data:')) return url;
   return `${API_URL.replace('/api', '')}${url}`;
 }
 
-// 60s timeout. Long, on purpose: the free hosting tier stops the server when it's idle
-// and the first request after that has to wait for it to boot (up to ~50s). A 30s
-// timeout turned that wake-up into a visible "server unreachable" error on the first
-// open of the day. Still bounded, so a genuinely dead server fails instead of hanging.
-const client = axios.create({ baseURL: API_URL, timeout: 60000 });
+// Ultra-minimal Fetch client that won't crash at module load time
+const client = {
+  defaults: { baseURL: API_URL, timeout: 60000 },
+  interceptors: {
+    request: {
+      handlers: [],
+      use(handler) {
+        this.handlers.push(handler);
+      }
+    }
+  },
 
-client.interceptors.request.use(async (config) => {
-  const token = await AsyncStorage.getItem('cake_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  async request(method, url, data, config = {}) {
+    try {
+      const finalConfig = { method, ...config };
+      let fullUrl = url.startsWith('http') ? url : `${this.defaults.baseURL}${url}`;
+
+      // Query params
+      if (finalConfig.params && Object.keys(finalConfig.params).length > 0) {
+        const qs = Object.keys(finalConfig.params)
+          .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(finalConfig.params[k])}`)
+          .join('&');
+        fullUrl = `${fullUrl}?${qs}`;
+      }
+
+      const headers = finalConfig.headers || { 'Content-Type': 'application/json' };
+
+      // Get token for auth
+      const token = await AsyncStorage.getItem('cake_token');
+      if (token) headers.Authorization = `Bearer ${token}`;
+
+      const fetchOptions = { method, headers };
+
+      // Body
+      if (data && method !== 'GET') {
+        if (data instanceof FormData) {
+          fetchOptions.body = data;
+          delete fetchOptions.headers['Content-Type'];
+        } else {
+          fetchOptions.body = typeof data === 'string' ? data : JSON.stringify(data);
+        }
+      }
+
+      const response = await fetch(fullUrl, fetchOptions);
+      const text = await response.text();
+      const responseData = text ? JSON.parse(text) : {};
+
+      return {
+        data: responseData,
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+        config: finalConfig
+      };
+    } catch (err) {
+      throw {
+        response: { data: { message: err.message } },
+        message: err.message,
+        config
+      };
+    }
+  },
+
+  get(url, config) {
+    return this.request('GET', url, null, config);
+  },
+  post(url, data, config) {
+    return this.request('POST', url, data, config);
+  },
+  put(url, data, config) {
+    return this.request('PUT', url, data, config);
+  },
+  patch(url, data, config) {
+    return this.request('PATCH', url, data, config);
+  },
+  delete(url, config) {
+    return this.request('DELETE', url, null, config);
   }
-  return config;
-});
+};
 
 async function getKnownHosts() {
-  let saved = [];
   try {
-    saved = JSON.parse((await AsyncStorage.getItem(KNOWN_HOSTS_KEY)) || '[]');
-  } catch (err) {
-    saved = [];
+    const saved = JSON.parse((await AsyncStorage.getItem(KNOWN_HOSTS_KEY)) || '[]');
+    return [...new Set([...saved, ...SEED_HOSTS, DEFAULT_API_URL])];
+  } catch {
+    return SEED_HOSTS;
   }
-  // De-duplicate while keeping the most-recently-used ones first (faster average detection).
-  return [...new Set([...saved, ...SEED_HOSTS, DEFAULT_API_URL])];
 }
 
 async function rememberHost(url) {
-  const hosts = await getKnownHosts();
-  const next = [url, ...hosts.filter((h) => h !== url)].slice(0, 8);
-  await AsyncStorage.setItem(KNOWN_HOSTS_KEY, JSON.stringify(next));
+  try {
+    const hosts = await getKnownHosts();
+    const next = [url, ...hosts.filter((h) => h !== url)].slice(0, 8);
+    await AsyncStorage.setItem(KNOWN_HOSTS_KEY, JSON.stringify(next));
+  } catch (err) {
+    console.log('rememberHost error (safe to ignore):', err.message);
+  }
 }
 
 function probe(url, timeout = HEALTH_PROBE_TIMEOUT_MS) {
-  return axios
-    .get(`${url.replace(/\/api\/?$/, '')}/api/health`, { timeout })
-    .then((res) => (res.data?.status === 'ok' ? url : null))
-    .catch(() => null);
+  return Promise.race([
+    fetch(`${url.replace(/\/api\/?$/, '')}/api/health`)
+      .then((res) => (res.ok ? url : null))
+      .catch(() => null),
+    new Promise((resolve) => setTimeout(() => resolve(null), timeout))
+  ]);
 }
 
-// Tries every known server address at once and returns the first one that actually
-// answers — this is what makes "walk into the office, open the app" work without
-// anyone touching Server Settings, as long as that network's address was used before.
-//
-// The public URL is deliberately not probed: free hosting sleeps when idle and can take
-// most of a minute to wake, far longer than it's worth blocking the splash screen for.
-// It's the answer whenever nothing on the local network responds, so probing it would
-// only slow down the case where the answer is already known.
 async function autoDetectServerUrl() {
-  const hosts = (await getKnownHosts()).filter((h) => h !== PUBLIC_API_URL);
-  const results = await Promise.all(hosts.map((h) => probe(h)));
-  return results.find(Boolean) || PUBLIC_API_URL;
+  try {
+    const hosts = (await getKnownHosts()).filter((h) => h !== PUBLIC_API_URL);
+    const results = await Promise.all(hosts.map((h) => probe(h)));
+    return results.find(Boolean) || PUBLIC_API_URL;
+  } catch {
+    return PUBLIC_API_URL;
+  }
 }
 
-// Call once at app startup (see App.js) to pick the right server before any screen
-// makes its first request. A manually-set address (Server Settings) always wins if
-// still reachable; otherwise auto-detects among known networks; otherwise falls back
-// to the manual address anyway (so errors are visible) or the built-in default.
 export async function loadServerUrlOverride() {
-  const saved = await AsyncStorage.getItem(STORAGE_KEY);
-  if (saved && (await probe(saved))) {
-    API_URL = saved;
-    client.defaults.baseURL = saved;
+  try {
+    const saved = await AsyncStorage.getItem(STORAGE_KEY);
+    if (saved && (await probe(saved))) {
+      API_URL = saved;
+      client.defaults.baseURL = saved;
+      return API_URL;
+    }
+
+    const detected = await autoDetectServerUrl();
+    if (detected) {
+      API_URL = detected;
+      client.defaults.baseURL = detected;
+      return API_URL;
+    }
+
+    API_URL = saved || DEFAULT_API_URL;
+    client.defaults.baseURL = API_URL;
+    return API_URL;
+  } catch (err) {
+    console.log('loadServerUrlOverride error (safe to ignore):', err.message);
+    API_URL = DEFAULT_API_URL;
+    client.defaults.baseURL = API_URL;
     return API_URL;
   }
-
-  const detected = await autoDetectServerUrl();
-  if (detected) {
-    API_URL = detected;
-    client.defaults.baseURL = detected;
-    return API_URL;
-  }
-
-  // Nothing responded — keep the manual override if there is one (so the error the
-  // user sees points at the address they meant to use), else the built-in default.
-  API_URL = saved || DEFAULT_API_URL;
-  client.defaults.baseURL = API_URL;
-  return API_URL;
 }
 
-// Saves a new server address and applies it immediately — no app restart needed.
-// Accepts either "192.168.1.8:5001" or a full "http://192.168.1.8:5001" and always
-// normalises to end in "/api". Also remembered for future auto-detection on this device.
 export async function setServerUrl(rawInput) {
-  let value = rawInput.trim().replace(/\/+$/, '');
-  if (!/^https?:\/\//i.test(value)) value = `http://${value}`;
-  if (!/\/api$/i.test(value)) value = `${value}/api`;
-  await AsyncStorage.setItem(STORAGE_KEY, value);
-  await rememberHost(value);
-  API_URL = value;
-  client.defaults.baseURL = value;
-  return value;
+  try {
+    let value = rawInput.trim().replace(/\/+$/, '');
+    if (!/^https?:\/\//i.test(value)) value = `http://${value}`;
+    if (!/\/api$/i.test(value)) value = `${value}/api`;
+    await AsyncStorage.setItem(STORAGE_KEY, value);
+    await rememberHost(value);
+    API_URL = value;
+    client.defaults.baseURL = value;
+    return value;
+  } catch (err) {
+    console.log('setServerUrl error:', err.message);
+    throw err;
+  }
 }
 
-// Removes the manual override and re-runs auto-detection among known networks.
 export async function resetServerUrl() {
-  await AsyncStorage.removeItem(STORAGE_KEY);
-  const detected = await autoDetectServerUrl();
-  API_URL = detected || DEFAULT_API_URL;
-  client.defaults.baseURL = API_URL;
-  return API_URL;
+  try {
+    await AsyncStorage.removeItem(STORAGE_KEY);
+    const detected = await autoDetectServerUrl();
+    API_URL = detected || DEFAULT_API_URL;
+    client.defaults.baseURL = API_URL;
+    return API_URL;
+  } catch (err) {
+    console.log('resetServerUrl error:', err.message);
+    return DEFAULT_API_URL;
+  }
 }
 
 export default client;

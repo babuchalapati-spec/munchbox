@@ -1,8 +1,0 @@
-# ngrok settings specific to Munchbox. Merged on top of the account config (which holds
-# the authtoken) by munchbox-daemon.ps1 — this file deliberately contains no secrets.
-#
-# web_addr is the whole reason this file exists: each running ngrok agent needs its own
-# local dashboard port, and the default 4040 is taken by another project's tunnel. It is
-# a config setting, not a CLI flag, on the installed agent version.
-version: "2"
-web_addr: 127.0.0.1:4041
