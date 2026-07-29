@@ -4,6 +4,9 @@
   "private": true,
   "type": "commonjs",
   "main": "src/server.js",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "prestart": "node scripts/check-port.js",
     "start": "node src/server.js",

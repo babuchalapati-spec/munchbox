@@ -1,0 +1,15 @@
+{
+  "java.import.exclusions": [
+    "**/node_modules/**",
+    "**/mobile/android/**"
+  ],
+  "java.import.gradle.enabled": false,
+  "java.configuration.updateBuildConfiguration": "disabled",
+  "gradle.nestedProjects": false,
+  "files.watcherExclude": {
+    "**/node_modules/**": true
+  },
+  "search.exclude": {
+    "**/node_modules": true
+  }
+}
