@@ -79,8 +79,8 @@ android {
         applicationId "com.cakeapp.mobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 43
-        versionName "18.0.0"
+        versionCode 45
+        versionName "18.0.2"
     }
 
     // Four separate apps out of one codebase. Each flavor gets its own applicationId
@@ -91,25 +91,25 @@ android {
     productFlavors {
         customer {
             dimension "role"
-            applicationId "com.munchbox.customer"
+            applicationId "com.cakeapp.mobile"
             resValue "string", "app_name", "Munchbox"
             resValue "string", "main_component_name", "MunchboxCustomer"
         }
         partner {
             dimension "role"
-            applicationId "com.munchbox.partner"
+            applicationId "com.cakeapp.mobile.partner"
             resValue "string", "app_name", "Munchbox Partner"
             resValue "string", "main_component_name", "MunchboxPartner"
         }
         shop {
             dimension "role"
-            applicationId "com.munchbox.shop"
+            applicationId "com.cakeapp.mobile.shop"
             resValue "string", "app_name", "Munchbox Shop"
             resValue "string", "main_component_name", "MunchboxShop"
         }
         admin {
             dimension "role"
-            applicationId "com.munchbox.admin"
+            applicationId "com.cakeapp.mobile.admin"
             resValue "string", "app_name", "Munchbox Admin"
             resValue "string", "main_component_name", "MunchboxAdmin"
         }

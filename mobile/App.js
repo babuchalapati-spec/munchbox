@@ -6,6 +6,7 @@ import RootNavigator from './src/navigation/RootNavigator';
 import { watchForUpdates } from './src/updateCheck';
 import { loadServerUrlOverride } from './src/api/client';
 import { AppTypeProvider } from './src/appType';
+import ErrorBoundary from './src/ErrorBoundary';
 import { colors } from './src/theme';
 
 // `appType` is set by index.js from the Android product flavor and is what makes this
@@ -17,7 +18,12 @@ export default function App({ appType = 'customer' }) {
   const [serverReady, setServerReady] = useState(false);
 
   useEffect(() => {
-    loadServerUrlOverride().finally(() => setServerReady(true));
+    try {
+      loadServerUrlOverride().finally(() => setServerReady(true));
+    } catch (err) {
+      console.error('Startup error in loadServerUrlOverride:', err);
+      setServerReady(true); // Allow app to boot so ErrorBoundary can display the error
+    }
   }, []);
 
   useEffect(() => {
@@ -35,12 +41,14 @@ export default function App({ appType = 'customer' }) {
   }
 
   return (
-    <AppTypeProvider appType={appType}>
-      <AuthProvider>
-        <CartProvider>
-          <RootNavigator appType={appType} />
-        </CartProvider>
-      </AuthProvider>
-    </AppTypeProvider>
+    <ErrorBoundary>
+      <AppTypeProvider appType={appType}>
+        <AuthProvider>
+          <CartProvider>
+            <RootNavigator appType={appType} />
+          </CartProvider>
+        </AuthProvider>
+      </AppTypeProvider>
+    </ErrorBoundary>
   );
 }

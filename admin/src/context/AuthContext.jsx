@@ -40,14 +40,14 @@ export function AuthProvider({ children }) {
     return {};
   }
 
-  // Shop-owner OTP login.
+  // Admin-only OTP login — exclusive to the phone number saved in Settings > My account.
   async function loginWithOtp(phone, code) {
     const data = await verifyOtpApi(phone, code);
     if (data.twoFactorRequired) {
       return { twoFactorRequired: true, ticket: data.ticket, email: data.email };
     }
-    if (!data.user || (data.user.role !== 'shop' && data.user.role !== 'admin')) {
-      throw new Error('This number is not registered to a dashboard account');
+    if (!data.user || data.user.role !== 'admin') {
+      throw new Error('Access denied. This number is not the registered admin number.');
     }
     localStorage.setItem('cake_admin_token', data.token);
     setUser(data.user);

@@ -94,6 +94,9 @@ export default function ShopDashboard() {
   const [editDraft, setEditDraft] = useState({name: '', basePrice: '', imageLink: '', imageFile: null});
   const [savingEdit, setSavingEdit] = useState(false);
   const [pendingUpiOrders, setPendingUpiOrders] = useState([]);
+  const [signedName, setSignedName] = useState('');
+  const [agreeChecked, setAgreeChecked] = useState(false);
+  const [signing, setSigning] = useState(false);
 
   const shopId = user?.shop?._id || user?.shop;
 
@@ -291,6 +294,22 @@ export default function ShopDashboard() {
     navigate('/login');
   }
 
+  async function signAgreement() {
+    if (!agreeChecked) return setError('Check the box to confirm you agree to the terms');
+    if (!signedName.trim()) return setError('Type your full name to sign');
+    setError('');
+    setSigning(true);
+    try {
+      const {data} = await client.put('/shops/me/agreement/sign', {signedName: signedName.trim()});
+      setShop(data.shop);
+      setMessage('Agreement signed. Your shop is now live.');
+    } catch (err) {
+      setError(err.response?.data?.message || 'Could not sign the agreement');
+    } finally {
+      setSigning(false);
+    }
+  }
+
   return (
     <div className="screen">
       <div className="top-bar">
@@ -301,13 +320,30 @@ export default function ShopDashboard() {
         {error && <p className="error">{error}</p>}
         {message && <p style={{color: '#2e7d32', fontSize: 13, marginBottom: 12}}>{message}</p>}
 
-        {shop?.deposit?.required && !shop.deposit.paid && (
+        {shop?.deposit?.required && !shop.deposit.paid && !shop?.agreement?.signed && (
           <div className="card" style={{borderColor: '#c62828', borderWidth: 1}}>
-            <p style={{fontWeight: 700}}>⏳ Activation deposit required</p>
-            <p className="muted">
-              Pay ₹{shop.deposit.amount} via UPI below to activate your shop. Customers won't see your shop until the
-              admin confirms this payment.
+            <p style={{fontWeight: 700}}>⏳ Activation required</p>
+            <p className="muted" style={{marginBottom: 12}}>
+              Your shop stays hidden from customers until you either sign the onboarding agreement below, or pay the
+              ₹{shop.deposit.amount} activation deposit via UPI further down this page.
             </p>
+
+            {shop?.agreement?.sent && (
+              <div style={{background: '#fdf6f0', borderRadius: 10, padding: 12, marginBottom: 4}}>
+                <p style={{fontWeight: 700, marginBottom: 6}}>📄 Munchbox shop agreement</p>
+                <p className="muted" style={{marginBottom: 8}}>Commission: <strong>{shop.agreement.commissionPercent}%</strong> per order</p>
+                <div style={{maxHeight: 160, overflowY: 'auto', fontSize: 13, color: '#5a4a42', background: '#fff', borderRadius: 8, padding: 10, marginBottom: 12, whiteSpace: 'pre-wrap'}}>
+                  {shop.agreement.termsText}
+                </div>
+                <label className="label">Type your full name to sign</label>
+                <input className="input" value={signedName} onChange={(e) => setSignedName(e.target.value)} placeholder="Full name" />
+                <label style={{display: 'flex', alignItems: 'center', gap: 8, margin: '10px 0', fontSize: 13}}>
+                  <input type="checkbox" checked={agreeChecked} onChange={(e) => setAgreeChecked(e.target.checked)} />
+                  I agree to these terms
+                </label>
+                <button className="btn" onClick={signAgreement} disabled={signing}>{signing ? 'Signing…' : 'Sign agreement'}</button>
+              </div>
+            )}
           </div>
         )}
 

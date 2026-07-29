@@ -26,7 +26,14 @@ async function getPaymentInfo(req, res) {
 
 async function updateSettings(req, res) {
   const settings = await Settings.getSingleton();
-  const { sms, app, partnerApp, shopApp, adminApp, payments, razorpay, finance, maps } = req.body;
+  const { sms, app, partnerApp, shopApp, adminApp, payments, razorpay, finance, maps, shopAgreement } = req.body;
+
+  if (shopAgreement) {
+    if (!settings.shopAgreement) settings.shopAgreement = {};
+    if (shopAgreement.commissionPercent !== undefined) settings.shopAgreement.commissionPercent = Number(shopAgreement.commissionPercent);
+    if (shopAgreement.termsText !== undefined) settings.shopAgreement.termsText = shopAgreement.termsText;
+    if (shopAgreement.depositAmount !== undefined) settings.shopAgreement.depositAmount = Number(shopAgreement.depositAmount);
+  }
 
   if (payments) {
     if (!settings.payments) settings.payments = {};

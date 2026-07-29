@@ -13,6 +13,7 @@ import { listShops } from '../api/shops';
 import { useCart } from '../context/CartContext';
 import { imageUri } from '../api/client';
 import { colors, categoryTheme } from '../theme';
+import { requestLocationPermission, getCurrentPosition } from '../location';
 
 export default function ShopsScreen({ route, navigation }) {
   const category = route?.params?.category;
@@ -22,7 +23,18 @@ export default function ShopsScreen({ route, navigation }) {
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
-    const data = await listShops(category);
+    // Only shops within ~15km show up (server-enforced) once we have a location fix;
+    // if permission is denied or the fix fails, fall back to the unfiltered list rather
+    // than blocking the screen on it.
+    let location = null;
+    try {
+      if (await requestLocationPermission()) {
+        location = await getCurrentPosition();
+      }
+    } catch (err) {
+      location = null;
+    }
+    const data = await listShops(category, location);
     setShops(data.filter((s) => s.available));
   }, [category]);
 

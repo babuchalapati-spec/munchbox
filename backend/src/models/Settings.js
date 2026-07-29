@@ -23,6 +23,24 @@ const settingsSchema = new mongoose.Schema(
       otpMessageTemplate: { type: String, default: 'Your Munchbox OTP is {otp}. Valid for 5 minutes.' },
       enabled: { type: Boolean, default: false },
     },
+    // Standard onboarding agreement sent automatically to every shop the admin approves
+    // (see authController.reviewShopAccount). A shop that signs it gets in for free; one
+    // that doesn't must pay `depositAmount` instead — see Shop.agreement / Shop.deposit.
+    shopAgreement: {
+      commissionPercent: { type: Number, default: 10 },
+      termsText: {
+        type: String,
+        default:
+          'By signing this agreement, you agree to list your shop on Munchbox and pay the platform ' +
+          'commission on each order as stated above. Munchbox will process customer orders, handle ' +
+          'delivery coordination, and settle your earnings on the agreed schedule, minus commission. ' +
+          'You are responsible for order accuracy, food quality/safety, and keeping your licenses ' +
+          '(GST/FSSAI/labour) valid. Munchbox may suspend or remove a shop for repeated complaints, ' +
+          'non-compliance, or fraud. Either party may end this agreement with notice; outstanding ' +
+          'settlements will still be paid out.',
+      },
+      depositAmount: { type: Number, default: 10000 },
+    },
     // Where shops/partners send their deposit money (UPI) until a payment gateway is wired.
     payments: {
       upiId: { type: String, default: '' }, // e.g. munchbox@okhdfcbank

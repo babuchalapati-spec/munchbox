@@ -6,7 +6,7 @@ import client from './api/client';
 // android/app/build.gradle); the backend advertises the latest build so the app can
 // prompt users to update automatically on launch. All four apps share one version
 // number — they are built from the same commit.
-export const APP_VERSION_CODE = 43;
+export const APP_VERSION_CODE = 45;
 // Every install polls this endpoint, so the interval is a real traffic decision, not a
 // detail: at 60s each phone made ~43k requests a month, which alone blows past the free
 // tunnel/hosting request allowance. Six hours plus the on-foreground check below still

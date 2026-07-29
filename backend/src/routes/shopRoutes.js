@@ -7,6 +7,7 @@ const {
   deleteShop,
   deliveryQuote,
   updateSubscription,
+  signAgreement,
 } = require('../controllers/shopController');
 const { protect, optionalAuth, adminOnly } = require('../middleware/auth');
 const upload = require('../middleware/upload');
@@ -15,6 +16,7 @@ const asyncHandler = require('../middleware/asyncHandler');
 const router = express.Router();
 
 router.get('/', optionalAuth, asyncHandler(listShops));
+router.put('/me/agreement/sign', protect, asyncHandler(signAgreement));
 router.get('/:id', asyncHandler(getShop));
 router.post('/', protect, adminOnly, upload.single('image'), asyncHandler(createShop));
 router.put('/:id', protect, adminOnly, upload.single('image'), asyncHandler(updateShop));

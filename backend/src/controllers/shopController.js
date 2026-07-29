@@ -21,7 +21,10 @@ async function listShops(req, res) {
   // Customers (non-admin) only see shops that are available and have an active subscription.
   const isAdmin = req.user && req.user.role === 'admin';
   if (!isAdmin) {
-    shops = shops.filter((s) => s.available && s.isSubscriptionActive() && !(s.deposit?.required && !s.deposit?.paid));
+    // A required-and-unpaid deposit hides the shop UNLESS the owner has signed the
+    // onboarding agreement instead — signing waives the deposit (see signAgreement).
+    const isBlocked = (s) => s.deposit?.required && !s.deposit?.paid && !s.agreement?.signed;
+    shops = shops.filter((s) => s.available && s.isSubscriptionActive() && !isBlocked(s));
 
     // A shop whose advance wallet is too low can't fulfil orders, so customers simply
     // don't see it. The wallet balance itself is never exposed to customers.
@@ -74,6 +77,35 @@ async function listShops(req, res) {
 async function getShop(req, res) {
   const shop = await Shop.findById(req.params.id);
   if (!shop) return res.status(404).json({ message: 'Shop not found' });
+  res.json({ shop });
+}
+
+// Shop owner signs the onboarding agreement sent at approval (a typed full name counts
+// as an e-signature under the IT Act 2000). Signing waives the activation deposit and
+// brings the shop live immediately — same effect as clearShopDepositIfPaid in
+// ledgerController.js, just via the agreement path instead of paying.
+async function signAgreement(req, res) {
+  if (req.user.role !== 'shop') {
+    return res.status(403).json({ message: 'Only shop accounts can sign this agreement' });
+  }
+  const shop = await Shop.findById(req.user.shop);
+  if (!shop) return res.status(404).json({ message: 'Shop not found' });
+  if (!shop.agreement?.sent) {
+    return res.status(400).json({ message: 'No agreement to sign yet' });
+  }
+  if (shop.agreement.signed) {
+    return res.status(400).json({ message: 'Already signed' });
+  }
+  const signedName = (req.body.signedName || '').trim();
+  if (!signedName) {
+    return res.status(400).json({ message: 'Type your full name to sign' });
+  }
+  shop.agreement.signed = true;
+  shop.agreement.signedAt = new Date();
+  shop.agreement.signedName = signedName;
+  shop.available = true;
+  shop.subscription.active = true;
+  await shop.save();
   res.json({ shop });
 }
 
@@ -206,4 +238,4 @@ async function updateSubscription(req, res) {
   res.json({ shop });
 }
 
-module.exports = { listShops, getShop, createShop, updateShop, deleteShop, deliveryQuote, updateSubscription };
+module.exports = { listShops, getShop, createShop, updateShop, deleteShop, deliveryQuote, updateSubscription, signAgreement };

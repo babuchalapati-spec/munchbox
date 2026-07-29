@@ -8,13 +8,17 @@ const CATEGORIES = [
   {key: 'catering', label: '🍽️ Catering'},
 ];
 
+const MAX_PHOTOS = 3;
+
 export default function ShopRegister() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({name: '', email: '', password: '', phone: '', shopName: '', category: 'cake', address: '', gstNumber: '', fssaiNumber: ''});
+  const [form, setForm] = useState({name: '', email: '', password: '', phone: '', shopName: '', category: 'cake', address: '', gstNumber: '', fssaiNumber: '', labourLicenseNumber: ''});
   const [location, setLocation] = useState(null);
   const [locating, setLocating] = useState(false);
   const [certFile, setCertFile] = useState(null);
-  const [uploadingCert, setUploadingCert] = useState(false);
+  const [labourCertFile, setLabourCertFile] = useState(null);
+  const [photoFiles, setPhotoFiles] = useState([]);
+  const [uploadStatus, setUploadStatus] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -42,6 +46,17 @@ export default function ShopRegister() {
     );
   }
 
+  function pickPhotos(fileList) {
+    setPhotoFiles(Array.from(fileList).slice(0, MAX_PHOTOS));
+  }
+
+  async function uploadOne(file) {
+    const fd = new FormData();
+    fd.append('image', file);
+    const {data} = await client.post('/uploads/public', fd, {headers: {'Content-Type': 'multipart/form-data'}, timeout: 120000});
+    return data.url;
+  }
+
   async function submit(e) {
     e.preventDefault();
     if (!form.name || !form.email || !form.password || !form.phone || !form.shopName) {
@@ -55,20 +70,34 @@ export default function ShopRegister() {
     try {
       let fssaiCertificateUrl = '';
       if (certFile) {
-        setUploadingCert(true);
-        const fd = new FormData();
-        fd.append('image', certFile);
-        const {data: uploadData} = await client.post('/uploads/public', fd, {headers: {'Content-Type': 'multipart/form-data'}, timeout: 120000});
-        fssaiCertificateUrl = uploadData.url;
-        setUploadingCert(false);
+        setUploadStatus('Uploading FSSAI certificate…');
+        fssaiCertificateUrl = await uploadOne(certFile);
       }
-      const {data} = await client.post('/auth/shop-register', {...form, lat: location?.lat, lng: location?.lng, fssaiCertificateUrl});
+      let labourCertificateUrl = '';
+      if (labourCertFile) {
+        setUploadStatus('Uploading labour license…');
+        labourCertificateUrl = await uploadOne(labourCertFile);
+      }
+      const images = [];
+      for (let i = 0; i < photoFiles.length; i++) {
+        setUploadStatus(`Uploading shop photo ${i + 1}/${photoFiles.length}…`);
+        images.push(await uploadOne(photoFiles[i]));
+      }
+      setUploadStatus('');
+      const {data} = await client.post('/auth/shop-register', {
+        ...form,
+        lat: location?.lat,
+        lng: location?.lng,
+        fssaiCertificateUrl,
+        labourCertificateUrl,
+        images,
+      });
       setMessage(data.message || 'Registration submitted. An admin will review and approve your shop before you can log in.');
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed');
     } finally {
       setBusy(false);
-      setUploadingCert(false);
+      setUploadStatus('');
     }
   }
 
@@ -121,16 +150,26 @@ export default function ShopRegister() {
             {locating ? 'Locating…' : location ? '✓ Location set — tap to update' : '📍 Pin my shop\'s exact GPS location'}
           </button>
 
+          <label className="label">Shop photos (up to {MAX_PHOTOS})</label>
+          <input type="file" accept="image/*" multiple onChange={(e) => pickPhotos(e.target.files)} style={{marginBottom: 4}} />
+          {photoFiles.length > 0 && <p className="muted" style={{marginBottom: 16}}>{photoFiles.length} photo{photoFiles.length > 1 ? 's' : ''} selected</p>}
+
           <label className="label">GST number (optional)</label>
           <input className="input" value={form.gstNumber} onChange={(e) => update('gstNumber', e.target.value.toUpperCase())} placeholder="e.g. 22AAAAA0000A1Z5" />
 
-          <label className="label">FSSAI license number (optional)</label>
+          <label className="label">FSSAI (food) license number (optional)</label>
           <input className="input" value={form.fssaiNumber} onChange={(e) => update('fssaiNumber', e.target.value)} placeholder="14-digit FSSAI number" />
 
           <label className="label">FSSAI certificate (optional)</label>
           <input type="file" accept="image/*,.pdf" onChange={(e) => setCertFile(e.target.files[0])} style={{marginBottom: 16}} />
 
-          <button className="btn" disabled={busy}>{busy ? (uploadingCert ? 'Uploading certificate…' : 'Submitting…') : 'Register shop'}</button>
+          <label className="label">Labour license number (optional)</label>
+          <input className="input" value={form.labourLicenseNumber} onChange={(e) => update('labourLicenseNumber', e.target.value)} placeholder="Labour license number" />
+
+          <label className="label">Labour license certificate (optional)</label>
+          <input type="file" accept="image/*,.pdf" onChange={(e) => setLabourCertFile(e.target.files[0])} style={{marginBottom: 16}} />
+
+          <button className="btn" disabled={busy}>{busy ? (uploadStatus || 'Submitting…') : 'Register shop'}</button>
         </form>
         <Link className="link" to="/shop-login">← Back to sign in</Link>
       </div>

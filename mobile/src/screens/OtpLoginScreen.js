@@ -20,6 +20,7 @@ export default function OtpLoginScreen({navigation}) {
   // built as decides which account role a sign-in must produce.
   const appType = useAppType();
   const isPartnerApp = appType === 'partner';
+  const isCustomerApp = appType === 'customer';
   const expectedRole = ROLE_FOR_APP[appType] || 'customer';
   const [authMethod, setAuthMethod] = useState('otp'); // 'otp' | 'password'
   const [step, setStep] = useState('phone'); // 'phone' | 'otp'
@@ -98,7 +99,7 @@ export default function OtpLoginScreen({navigation}) {
       const res = await loginWithOtp(phone, code, name, expectedRole, referralCode);
       // A phone number with no partner account yet has to finish partner sign-up
       // (vehicle, licence, KYC) before there is anything to log in to.
-      if (res?.needsRegistration) {
+      if (res?.needsRegistration && isPartnerApp) {
         navigation.navigate('DeliveryRegister', {phone});
         return;
       }
@@ -144,11 +145,13 @@ export default function OtpLoginScreen({navigation}) {
 
       {authMethod === 'password' ? (
         <>
-          <Text style={styles.fieldLabel}>Sign in with your phone number and password</Text>
+          <Text style={styles.fieldLabel}>
+            {isCustomerApp ? 'Sign in with your customer ID / phone number and password' : 'Sign in with your phone number and password'}
+          </Text>
           <TextInput
             style={styles.input}
-            placeholder="Phone number"
-            keyboardType="phone-pad"
+            placeholder={isCustomerApp ? 'Customer ID / phone number' : 'Phone number'}
+            keyboardType={isCustomerApp ? 'default' : 'phone-pad'}
             value={phone}
             onChangeText={setPhone}
           />
@@ -168,7 +171,9 @@ export default function OtpLoginScreen({navigation}) {
         </>
       ) : step === 'phone' ? (
         <>
-          <Text style={styles.fieldLabel}>Enter your phone number to continue</Text>
+          <Text style={styles.fieldLabel}>
+            {isCustomerApp ? 'Enter your phone number to sign in or register' : 'Enter your phone number to continue'}
+          </Text>
           <TextInput
             style={styles.input}
             placeholder="Phone number"
@@ -241,20 +246,9 @@ export default function OtpLoginScreen({navigation}) {
           </TouchableOpacity>
         ) : (
           <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-            <Text style={styles.link}>New here? Create an account</Text>
+            <Text style={styles.link}>First time user? Register customer account</Text>
           </TouchableOpacity>
         )}
-
-        <View style={styles.divider}>
-          <Text style={styles.dividerText}>
-            {isPartnerApp ? 'Ordering food instead?' : 'Delivering or running a shop?'}
-          </Text>
-        </View>
-        <Text style={styles.otherAppHint}>
-          {isPartnerApp
-            ? 'Install the Munchbox app to order.'
-            : 'Install Munchbox Partner or Munchbox Shop from the same download page.'}
-        </Text>
 
         <TouchableOpacity style={styles.serverLink} onPress={() => navigation.navigate('ServerSettings')}>
           <Text style={styles.serverLinkText}>⚙ Server settings</Text>

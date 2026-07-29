@@ -5,8 +5,9 @@ const STATUS_LABEL = { pending: 'Awaiting approval', active: 'Approved', rejecte
 const STATUS_COLOR = { pending: '#a86b00', active: '#2e7d32', rejected: '#c62828' };
 
 function depositLabel(shop) {
+  if (shop?.agreement?.signed) return `✅ Agreement signed (${shop.agreement.signedName})`;
   if (!shop?.deposit?.required) return '—';
-  return shop.deposit.paid ? `✅ Paid ₹${shop.deposit.amount}` : `⏳ Awaiting ₹${shop.deposit.amount}`;
+  return shop.deposit.paid ? `✅ Paid ₹${shop.deposit.amount}` : `⏳ Awaiting ₹${shop.deposit.amount} or signature`;
 }
 
 export default function ShopAccounts() {
@@ -31,25 +32,13 @@ export default function ShopAccounts() {
   }, []);
 
   async function approve(id) {
-    const requireDeposit = window.confirm(
-      'Require a security deposit before this shop goes live?\n\n' +
-        'OK = require a deposit (shop stays hidden from customers until paid)\n' +
-        'Cancel = activate immediately, no deposit'
-    );
-    let depositAmount = 0;
-    if (requireDeposit) {
-      const amt = window.prompt('Deposit amount (₹):', '2000');
-      if (amt === null) return;
-      depositAmount = Number(amt);
-      if (!depositAmount || depositAmount <= 0) {
-        setError('Enter a valid deposit amount');
-        return;
-      }
+    if (!window.confirm('Approve this shop? The standard agreement will be sent automatically — the shop goes live once the owner signs it or pays the activation deposit.')) {
+      return;
     }
     setBusyId(id);
     setError('');
     try {
-      await reviewShopAccount(id, 'approve', { days: 30, requireDeposit, depositAmount });
+      await reviewShopAccount(id, 'approve', { days: 30 });
       await refresh();
     } catch (err) {
       setError(err.response?.data?.message || 'Approve failed');
@@ -200,7 +189,7 @@ export default function ShopAccounts() {
               <th>Contact</th>
               <th>Shop</th>
               <th>2FA</th>
-              <th>Deposit</th>
+              <th>Activation</th>
               <th>Status</th>
               <th>Action</th>
             </tr>

@@ -1,7 +1,12 @@
 import client from './client';
 
-export async function listShops() {
-  const { data } = await client.get('/shops');
+export async function listShops(category, location) {
+  const { data } = await client.get('/shops', {
+    params: {
+      ...(category ? { category } : {}),
+      ...(location ? { lat: location.lat, lng: location.lng } : {}),
+    },
+  });
   return data.shops;
 }
 

@@ -5,6 +5,7 @@ export const TUNNEL_API_URL = '';
 export const DEFAULT_API_URL = PUBLIC_API_URL;
 
 const SEED_HOSTS = [
+  'http://192.168.1.3:5001/api',
   'http://192.168.1.7:5001/api',
   'http://192.168.1.8:5001/api',
   'http://192.168.1.9:5001/api',

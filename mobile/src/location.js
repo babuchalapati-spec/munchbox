@@ -3,9 +3,22 @@ import Geolocation from '@react-native-community/geolocation';
 
 // Allow the app to fall back to network (WiFi/cell) location, which works indoors
 // and even when the GPS radio is off. 'auto' lets Android pick the best provider.
-Geolocation.setRNConfiguration({ authorizationLevel: 'whenInUse', locationProvider: 'auto' });
+// Deferred to first actual use (not run at module load) so a native-module hiccup here
+// can't crash the app before anything ever renders — every screen gets pulled into the
+// bundle by RootNavigator regardless of role, so this file loads on every app launch.
+let configured = false;
+function ensureConfigured() {
+  if (configured) return;
+  configured = true;
+  try {
+    Geolocation.setRNConfiguration({ authorizationLevel: 'whenInUse', locationProvider: 'auto' });
+  } catch (err) {
+    console.error('Geolocation.setRNConfiguration failed:', err);
+  }
+}
 
 export async function requestLocationPermission() {
+  ensureConfigured();
   if (Platform.OS !== 'android') return true;
   try {
     const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION, {

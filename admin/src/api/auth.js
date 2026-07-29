@@ -11,7 +11,7 @@ export async function requestOtp(phone) {
 }
 
 export async function verifyOtp(phone, code) {
-  const { data } = await client.post('/auth/verify-otp', { phone, code, role: 'shop' });
+  const { data } = await client.post('/auth/verify-otp', { phone, code, role: 'admin' });
   return data; // { user, token } OR { twoFactorRequired, ticket, email }
 }
 
@@ -32,9 +32,8 @@ export async function updateMe(payload) {
 }
 
 // Forgot-password: verifying the phone-login OTP proves ownership, then sets a new
-// password. role 'shop' matches verifyOtp's lookup, which also falls back to the admin
-// account for this phone (set via ADMIN_PHONE in .env) — same convention as the OTP tab.
+// password. role 'admin' matches verifyOtp's lookup — the admin's own phone number only.
 export async function resetPasswordWithOtp(phone, code, newPassword) {
-  const { data } = await client.post('/auth/reset-password', { phone, code, newPassword, role: 'shop' });
+  const { data } = await client.post('/auth/reset-password', { phone, code, newPassword, role: 'admin' });
   return data;
 }

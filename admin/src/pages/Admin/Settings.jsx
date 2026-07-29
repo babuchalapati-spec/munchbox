@@ -41,6 +41,8 @@ export default function Settings() {
   const [razorpay, setRazorpay] = useState({ keyId: '', keySecret: '', enabled: false });
   const [testingRazorpay, setTestingRazorpay] = useState(false);
   const [testRazorpayResult, setTestRazorpayResult] = useState(null);
+  const [maps, setMaps] = useState({ googleMapsApiKey: '' });
+  const [shopAgreement, setShopAgreement] = useState({ commissionPercent: 10, termsText: '', depositAmount: 10000 });
   const [app, setApp] = useState({ latestVersionCode: 1, latestVersionName: '1.0', apkUrl: '', updateMessage: '', mandatory: false });
   const [partnerApp, setPartnerApp] = useState({
     latestVersionCode: 1,
@@ -76,6 +78,8 @@ export default function Settings() {
       .then((s) => {
         setSms((prev) => ({ ...prev, ...(s.sms || {}) }));
         setRazorpay((prev) => ({ ...prev, ...(s.razorpay || {}) }));
+        setMaps((prev) => ({ ...prev, ...(s.maps || {}) }));
+        setShopAgreement((prev) => ({ ...prev, ...(s.shopAgreement || {}) }));
         setApp((prev) => ({ ...prev, ...(s.app || {}) }));
         setPartnerApp((prev) => ({ ...prev, ...(s.partnerApp || {}) }));
         setShopApp((prev) => ({ ...prev, ...(s.shopApp || {}) }));
@@ -92,6 +96,16 @@ export default function Settings() {
 
   function changeRazorpay(field, value) {
     setRazorpay((r) => ({ ...r, [field]: value }));
+    setSaved(false);
+  }
+
+  function changeMaps(field, value) {
+    setMaps((m) => ({ ...m, [field]: value }));
+    setSaved(false);
+  }
+
+  function changeShopAgreement(field, value) {
+    setShopAgreement((a) => ({ ...a, [field]: value }));
     setSaved(false);
   }
 
@@ -136,9 +150,11 @@ export default function Settings() {
     e.preventDefault();
     setError('');
     try {
-      const updated = await updateSettings({ sms, razorpay, app, partnerApp, shopApp, adminApp });
+      const updated = await updateSettings({ sms, razorpay, maps, shopAgreement, app, partnerApp, shopApp, adminApp });
       setSms(updated.sms);
       setRazorpay((prev) => ({ ...prev, ...(updated.razorpay || {}) }));
+      setMaps((prev) => ({ ...prev, ...(updated.maps || {}) }));
+      setShopAgreement((prev) => ({ ...prev, ...(updated.shopAgreement || {}) }));
       setApp(updated.app);
       setPartnerApp(updated.partnerApp);
       setShopApp(updated.shopApp);
@@ -222,8 +238,8 @@ export default function Settings() {
           />
         </label>
         <p className="muted" style={{ marginTop: -4 }}>
-          Set this once to sign in from the "OTP (shop owner / admin)" tab on the login page, instead of only
-          email/password.
+          Set this once to sign in from the OTP tab on the login page, instead of only email/password. Only this
+          exact number can use admin OTP login — no other number, including shop numbers, will work there.
         </p>
         <div className="form-actions">
           <button type="submit" disabled={savingPhone}>{savingPhone ? 'Saving...' : 'Save phone number'}</button>
@@ -359,6 +375,23 @@ export default function Settings() {
             here instead of at a customer's checkout.
           </p>
         </div>
+
+        <h2 style={{ marginTop: 24 }}>Maps</h2>
+        <p className="muted">
+          The admin Live Map reads shops, customer delivery addresses, and delivery partner GPS from the database. Add a
+          Google Maps browser API key here to display those database locations on Google Maps.
+        </p>
+        <label>
+          Google Maps API key
+          <input
+            value={maps.googleMapsApiKey}
+            onChange={(e) => changeMaps('googleMapsApiKey', e.target.value)}
+            placeholder="AIza..."
+          />
+        </label>
+        <p className="muted" style={{ marginTop: -4 }}>
+          If this is blank or invalid, the Live Map falls back to OpenStreetMap.
+        </p>
 
         <h2 style={{ marginTop: 24 }}>App auto-update</h2>
         <p className="muted">When you release a new APK, upload it to the server's downloads folder and bump these.</p>
@@ -505,6 +538,36 @@ export default function Settings() {
             onChange={(e) => changeAdminApp('mandatory', e.target.checked)}
           />
           Force admin update
+        </label>
+
+        <h2 style={{ marginTop: 24 }}>Shop onboarding agreement</h2>
+        <p className="muted">
+          Sent automatically to every shop the moment you approve them (Shop accounts page). A shop that signs it
+          goes live for free; one that doesn't must pay the deposit below instead.
+        </p>
+        <label>
+          Commission (%) per order
+          <input
+            type="number"
+            value={shopAgreement.commissionPercent}
+            onChange={(e) => changeShopAgreement('commissionPercent', e.target.value)}
+          />
+        </label>
+        <label>
+          Activation deposit (₹) — the fallback if the shop doesn't sign
+          <input
+            type="number"
+            value={shopAgreement.depositAmount}
+            onChange={(e) => changeShopAgreement('depositAmount', e.target.value)}
+          />
+        </label>
+        <label>
+          Agreement terms shown to the shop
+          <textarea
+            rows={8}
+            value={shopAgreement.termsText}
+            onChange={(e) => changeShopAgreement('termsText', e.target.value)}
+          />
         </label>
 
         <div className="form-actions">

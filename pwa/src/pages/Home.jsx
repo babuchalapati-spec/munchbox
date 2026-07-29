@@ -15,11 +15,25 @@ export default function Home() {
   const firstName = (user?.name || '').trim().split(' ')[0];
 
   useEffect(() => {
-    client
-      .get('/shops')
-      .then(({data}) => setShops(data.shops))
-      .catch(() => setShops([]))
-      .finally(() => setLoading(false));
+    // Only shops within ~15km show up (server-enforced) once we have a location fix; if
+    // permission is denied or geolocation is unavailable, fall back to the unfiltered list
+    // rather than blocking the page on it.
+    function loadShops(location) {
+      client
+        .get('/shops', {params: location ? {lat: location.lat, lng: location.lng} : {}})
+        .then(({data}) => setShops(data.shops))
+        .catch(() => setShops([]))
+        .finally(() => setLoading(false));
+    }
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => loadShops({lat: pos.coords.latitude, lng: pos.coords.longitude}),
+        () => loadShops(null),
+        {timeout: 8000}
+      );
+    } else {
+      loadShops(null);
+    }
   }, []);
 
   const filtered = category ? shops.filter((s) => s.category === category) : shops;

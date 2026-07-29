@@ -5,8 +5,8 @@ import {useAuth} from '../context/AuthContext';
 export default function Login() {
   const {login, loginWithOtp, requestOtp} = useAuth();
   const navigate = useNavigate();
-  const [authMethod, setAuthMethod] = useState('otp'); // 'otp' | 'password'
-  const [step, setStep] = useState('phone'); // 'phone' | 'otp'
+  const [authMethod, setAuthMethod] = useState('otp');
+  const [step, setStep] = useState('phone');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -64,7 +64,7 @@ export default function Login() {
       <div className="hero">
         <div className="hero-logo">🍰</div>
         <h1>Munchbox</h1>
-        <p>Cakes, food & catering — delivered warm</p>
+        <p>Cakes, food & catering - delivered warm</p>
       </div>
       <div className="form-card">
         <div className="tab-row">
@@ -79,7 +79,7 @@ export default function Login() {
             <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone number" />
             <label className="label">Password</label>
             <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" />
-            <button className="btn" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
+            <button className="btn" disabled={busy}>{busy ? 'Signing in...' : 'Sign in'}</button>
             <Link className="link" to="/forgot-password">Forgot password?</Link>
           </form>
         ) : step === 'phone' ? (
@@ -88,26 +88,19 @@ export default function Login() {
             <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone number" />
             <label className="label">Your name (optional)</label>
             <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" />
-            <button className="btn" disabled={busy}>{busy ? 'Sending…' : 'Send OTP'}</button>
+            <button className="btn" disabled={busy}>{busy ? 'Sending...' : 'Send OTP'}</button>
           </form>
         ) : (
           <form onSubmit={verify}>
             <p className="muted">OTP sent to {phone}</p>
             <input className="input" value={code} onChange={(e) => setCode(e.target.value)} placeholder="Enter OTP" maxLength={6} />
-            <button className="btn" disabled={busy}>{busy ? 'Verifying…' : 'Verify & continue'}</button>
+            <button className="btn" disabled={busy}>{busy ? 'Verifying...' : 'Verify & continue'}</button>
             <button type="button" className="link" onClick={() => setStep('phone')}>Change number</button>
           </form>
         )}
 
         <Link className="link" to="/register">New here? Create an account</Link>
-
-        <div style={{borderTop: '1px solid #e6e0da', marginTop: 20, paddingTop: 14}}>
-          <p className="muted" style={{textAlign: 'center', marginBottom: 10}}>Not a customer?</p>
-          <Link to="/delivery-login" className="btn btn-outline" style={{display: 'block', textAlign: 'center', marginBottom: 10}}>🛵 I'm a delivery partner</Link>
-          <Link to="/shop-login" className="btn btn-outline" style={{display: 'block', textAlign: 'center'}}>🏪 I'm a shop owner</Link>
-        </div>
-
-        <Link className="link" to="/download" style={{display: 'block', textAlign: 'center', marginTop: 14}}>⬇️ Download the app</Link>
+        <Link className="link" to="/download" style={{display: 'block', textAlign: 'center', marginTop: 14}}>Download the app</Link>
       </div>
     </div>
   );

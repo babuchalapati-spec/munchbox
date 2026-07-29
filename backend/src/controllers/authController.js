@@ -261,14 +261,18 @@ async function verifyOtp(req, res) {
       }
       return res.json({ user: toPublicUser(shopUser), token: signToken(shopUser) });
     }
-    // The admin dashboard's OTP tab serves both shop owners and the admin account, so
-    // a number not registered as a shop is also checked against the admin account
-    // (set via ADMIN_PHONE in .env) before giving up.
-    const adminUser = await User.findOne({ phone, role: 'admin' });
-    if (adminUser) {
-      return res.json({ user: toPublicUser(adminUser), token: signToken(adminUser) });
-    }
     return res.status(404).json({ message: 'No shop account for this number. Please contact the Munchbox admin.' });
+  }
+
+  // Admin dashboard's OTP tab: exclusive to the phone number saved in Settings > My
+  // account (or ADMIN_PHONE in .env). Deliberately does NOT fall back to any shop
+  // account — every other number is denied, full stop.
+  if (role === 'admin') {
+    const adminUser = await User.findOne({ phone, role: 'admin' });
+    if (!adminUser) {
+      return res.status(403).json({ message: 'Access denied. This number is not the registered admin number.' });
+    }
+    return res.json({ user: toPublicUser(adminUser), token: signToken(adminUser) });
   }
 
   // Customer login (default): find or create the CUSTOMER account for this phone.
@@ -309,14 +313,14 @@ async function resetPasswordWithOtp(req, res) {
   }
   await Otp.deleteOne({ _id: otp._id });
 
-  // Mirrors verifyOtp's lookup: the admin dashboard's OTP tab uses role 'shop' for both
-  // shop owners and the admin account (set via ADMIN_PHONE in .env), so a number not
-  // registered as a shop is also checked against the admin account before giving up.
+  // Mirrors verifyOtp's per-role lookup — see the comments there.
   let user;
   if (role === 'delivery') {
     user = await User.findOne({ phone, role: 'delivery' });
   } else if (role === 'shop') {
-    user = await User.findOne({ phone, role: 'shop' }) || await User.findOne({ phone, role: 'admin' });
+    user = await User.findOne({ phone, role: 'shop' });
+  } else if (role === 'admin') {
+    user = await User.findOne({ phone, role: 'admin' });
   } else {
     user = await User.findOne({ phone, role: 'customer' });
   }
@@ -419,7 +423,11 @@ async function listShopAccounts(req, res) {
 // admin must grant `twoFactor.allowed` before this shop can arm it (see
 // setShopTwoFactorPermission), since some shops want it and others don't.
 async function shopRegister(req, res) {
-  const { name, email, password, phone, shopName, category, address, lat, lng, gstNumber, fssaiNumber, fssaiCertificateUrl } = req.body;
+  const {
+    name, email, password, phone, shopName, category, address, lat, lng,
+    gstNumber, fssaiNumber, fssaiCertificateUrl,
+    labourLicenseNumber, labourCertificateUrl, images,
+  } = req.body;
   if (!name || !email || !password || !shopName || !phone) {
     return res.status(400).json({ message: 'Your name, email, password, phone and shop name are required' });
   }
@@ -456,6 +464,9 @@ async function shopRegister(req, res) {
     gstNumber: gstNumber || '',
     fssaiNumber: fssaiNumber || '',
     fssaiCertificateUrl: fssaiCertificateUrl || '',
+    labourLicenseNumber: labourLicenseNumber || '',
+    labourCertificateUrl: labourCertificateUrl || '',
+    images: Array.isArray(images) ? images.filter(Boolean).slice(0, 3) : [],
   });
 
   const hashed = await bcrypt.hash(password, 10);
@@ -527,11 +538,12 @@ async function setShopTwoFactorPermission(req, res) {
   res.json({ user: toPublicUser(user) });
 }
 
-// Admin approves or rejects a self-registered shop. On approval the admin decides,
-// per shop, whether a security deposit is required before it goes live — some shops
-// pay one, others the admin waives at their discretion.
+// Admin approves or rejects a self-registered shop. On approval, the standard onboarding
+// agreement (Settings.shopAgreement) is sent automatically — the shop goes live once the
+// owner either signs it or pays the activation deposit as a fallback (see Shop.agreement /
+// Shop.deposit, and shopController.signAgreement / listShops for how each is enforced).
 async function reviewShopAccount(req, res) {
-  const { action, reason, days, requireDeposit, depositAmount } = req.body; // 'approve' | 'reject'
+  const { action, reason, days } = req.body; // 'approve' | 'reject'
   const user = await User.findOne({ _id: req.params.id, role: 'shop' }).populate('shop');
   if (!user) return res.status(404).json({ message: 'Shop account not found' });
 
@@ -540,22 +552,28 @@ async function reviewShopAccount(req, res) {
     user.approvalReason = '';
     if (user.shop) {
       const span = Number(days) > 0 ? Number(days) : 30;
-      const needsDeposit = Boolean(requireDeposit) && Number(depositAmount) > 0;
+      const Settings = require('../models/Settings');
+      const settings = await Settings.getSingleton();
+      const template = settings.shopAgreement || {};
+
       // The owner can log in either way; only whether the shop goes LIVE differs.
       user.shop.subscription = {
-        active: !needsDeposit,
+        active: true,
         plan: user.shop.subscription?.plan === 'pending' ? 'trial' : user.shop.subscription?.plan || 'trial',
         endsAt: new Date(Date.now() + span * 24 * 60 * 60 * 1000),
       };
-      if (needsDeposit) {
-        // Stays hidden from customers until the owner pays via UPI and an admin
-        // confirms it (see reviewTopUp), which flips deposit.paid + available.
-        user.shop.deposit = { required: true, amount: Number(depositAmount), paid: false };
-        user.shop.available = false;
-      } else {
-        user.shop.deposit = { required: false, amount: 0, paid: false };
-        user.shop.available = true;
-      }
+      user.shop.agreement = {
+        sent: true,
+        sentAt: new Date(),
+        commissionPercent: template.commissionPercent || 0,
+        termsText: template.termsText || '',
+        signed: false,
+      };
+      // Stays hidden from customers until the owner either signs the agreement above
+      // or pays this deposit via UPI and an admin confirms it (see reviewTopUp), which
+      // flips deposit.paid + available.
+      user.shop.deposit = { required: true, amount: Number(template.depositAmount) || 10000, paid: false };
+      user.shop.available = false;
       await user.shop.save();
     }
   } else if (action === 'reject') {

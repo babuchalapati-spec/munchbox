@@ -23,6 +23,10 @@ const shopSchema = new mongoose.Schema(
     gstNumber: { type: String, default: '' },
     fssaiNumber: { type: String, default: '' },
     fssaiCertificateUrl: { type: String, default: '' },
+    labourLicenseNumber: { type: String, default: '' },
+    labourCertificateUrl: { type: String, default: '' },
+    // Up to 3 storefront photos shown on the shop's listing/detail page.
+    images: { type: [String], default: [] },
     // Running average from customer order ratings (see Order.rating.shopStars).
     rating: {
       avg: { type: Number, default: 0 },
@@ -43,6 +47,21 @@ const shopSchema = new mongoose.Schema(
       required: { type: Boolean, default: false },
       amount: { type: Number, default: 0 },
       paid: { type: Boolean, default: false },
+    },
+
+    // Sent automatically when the admin approves the shop (see reviewShopAccount). A
+    // signed agreement waives the activation deposit above; an unsigned one means the
+    // deposit stays the only way in. `commissionPercent`/`termsText` are a snapshot of
+    // Settings.shopAgreement at send time, so a later template edit doesn't rewrite
+    // terms someone already agreed to.
+    agreement: {
+      sent: { type: Boolean, default: false },
+      sentAt: { type: Date },
+      commissionPercent: { type: Number, default: 0 },
+      termsText: { type: String, default: '' },
+      signed: { type: Boolean, default: false },
+      signedAt: { type: Date },
+      signedName: { type: String, default: '' },
     },
   },
   { timestamps: true }

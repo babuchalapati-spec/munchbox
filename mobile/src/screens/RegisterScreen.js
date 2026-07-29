@@ -49,8 +49,8 @@ export default function RegisterScreen({navigation}) {
         <View style={styles.logoMark}>
           <Text style={styles.logoEmoji}>🍰</Text>
         </View>
-        <Text style={styles.title}>Create account</Text>
-        <Text style={styles.subtitle}>Join Munchbox in a minute</Text>
+        <Text style={styles.title}>Customer registration</Text>
+        <Text style={styles.subtitle}>Create your customer account with your phone number</Text>
       </LinearGradient>
 
       <View style={styles.formCard}>
@@ -59,7 +59,7 @@ export default function RegisterScreen({navigation}) {
         <Text style={styles.label}>Name</Text>
         <TextInput style={styles.input} placeholder="Your full name" value={form.name} onChangeText={(v) => update('name', v)} />
 
-        <Text style={styles.label}>Phone number</Text>
+        <Text style={styles.label}>Customer phone number</Text>
         <TextInput
           style={styles.input}
           placeholder="Phone number"
@@ -87,7 +87,7 @@ export default function RegisterScreen({navigation}) {
         />
 
         <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={submitting}>
-          {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Create account</Text>}
+          {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Create customer account</Text>}
         </TouchableOpacity>
         <TouchableOpacity onPress={() => navigation.navigate('OtpLogin')}>
           <Text style={styles.link}>Already have an account? Sign in</Text>
