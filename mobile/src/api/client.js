@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const PUBLIC_API_URL = 'https://nirman-4vyy.onrender.com/api';
+export const PUBLIC_API_URL = 'https://munchbox-5.onrender.com/api';
 export const TUNNEL_API_URL = '';
 export const DEFAULT_API_URL = PUBLIC_API_URL;
 
