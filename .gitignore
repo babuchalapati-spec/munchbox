@@ -11,8 +11,10 @@ node_modules/
 # Backend uploads (user-generated content, not source)
 backend/uploads/
 
-# Downloadable APKs served by the backend (rebuilt/republished, not source)
-backend/downloads/*.apk
+# Downloadable APKs ARE committed (see backend/downloads/*.apk) so a normal git push
+# always carries the current builds — Render's disk is not persistent, so anything not
+# in git (e.g. an APK uploaded only via Admin > Settings > Publish APK) is lost on the
+# next redeploy.
 
 # Android build outputs
 mobile/android/app/build/
