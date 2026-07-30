@@ -3,11 +3,14 @@ import {Link} from 'react-router-dom';
 import QRCode from 'qrcode';
 import client from '../api/client';
 
+// icon is each flavor's real Android launcher icon (see build-apks.ps1 / mobile/android
+// app/src/<flavor>/res), not a generic emoji — so the icon shown here is the exact one
+// to look for on the home screen after installing.
 const CARDS = {
-  customer: {icon: '🛍️', title: 'Customer App', blurb: 'Order cakes, food and catering.'},
-  partner: {icon: '🛵', title: 'Delivery Partner App', blurb: 'Accept and deliver orders.'},
-  shop: {icon: '🏪', title: 'Shop Owner App', blurb: 'Manage your shop and orders.'},
-  admin: {icon: '🛠️', title: 'Admin App', blurb: 'Manage the whole platform.'},
+  customer: {icon: '/app-icons/customer.png', title: 'Customer App', blurb: 'Order cakes, food and catering.'},
+  partner: {icon: '/app-icons/partner.png', title: 'Delivery Partner App', blurb: 'Accept and deliver orders.'},
+  shop: {icon: '/app-icons/shop.png', title: 'Shop Owner App', blurb: 'Manage your shop and orders.'},
+  admin: {icon: '/app-icons/admin.png', title: 'Admin App', blurb: 'Manage the whole platform.'},
 };
 
 export default function Download() {
@@ -45,8 +48,8 @@ export default function Download() {
             <div className="card" style={{marginBottom: 12}} key={type}>
               <div style={{display: 'flex', alignItems: 'center', gap: 14}}>
                 <div style={{flex: 1, minWidth: 0}}>
-                  <div style={{fontSize: 28}}>{card.icon}</div>
-                  <div style={{fontWeight: 700, fontSize: 16, marginTop: 4}}>{card.title}</div>
+                  <img src={card.icon} alt="" width={44} height={44} style={{borderRadius: 10}} />
+                  <div style={{fontWeight: 700, fontSize: 16, marginTop: 6}}>{card.title}</div>
                   <div className="muted" style={{marginBottom: 10}}>{card.blurb}</div>
                   {app?.apkUrl ? (
                     <a className="btn" href={app.apkUrl} style={{display: 'block', textAlign: 'center', textDecoration: 'none'}}>
