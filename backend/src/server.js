@@ -21,6 +21,13 @@ const paymentRoutes = require('./routes/paymentRoutes');
 
 const app = express();
 
+// Render terminates TLS and forwards requests over plain HTTP with X-Forwarded-Proto
+// set — without this, Express's req.protocol always reads "http", which made
+// getPublicBaseUrl() (appRoutes.js, settingsController.js) hand out insecure apkUrl
+// links from an HTTPS page. Mobile Chrome blocks/interferes with APK downloads
+// initiated over HTTP from a secure page, which is why installing broke.
+app.set('trust proxy', 1);
+
 // Reflects back whatever Origin sent the request instead of a single fixed value —
 // the admin/pwa dev servers are reachable at whatever LAN IP the device is on (which
 // changes across networks), and this app authenticates via a Bearer token (not
