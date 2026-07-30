@@ -83,35 +83,32 @@ android {
         versionName "18.0.2"
     }
 
-    // Four separate apps out of one codebase. Each flavor gets its own applicationId
-    // so all four can be installed side by side on the same phone, and its own
-    // main_component_name — the JS component index.js registers for that role, which
-    // is what makes the partner APK open the delivery screens instead of the shop.
+    // Four separate apps out of one codebase. Each flavor gets its own applicationId so
+    // all four can be installed side by side on the same phone. Which JS component each
+    // one registers (index.js) is decided in MainActivity.kt from BuildConfig.FLAVOR, not
+    // from a resValue here — reading a resValue via getString() crashes on launch (see the
+    // comment on MainActivity.getMainComponentName for why).
     flavorDimensions "role"
     productFlavors {
         customer {
             dimension "role"
             applicationId "com.cakeapp.mobile"
             resValue "string", "app_name", "Munchbox"
-            resValue "string", "main_component_name", "MunchboxCustomer"
         }
         partner {
             dimension "role"
             applicationId "com.cakeapp.mobile.partner"
             resValue "string", "app_name", "Munchbox Partner"
-            resValue "string", "main_component_name", "MunchboxPartner"
         }
         shop {
             dimension "role"
             applicationId "com.cakeapp.mobile.shop"
             resValue "string", "app_name", "Munchbox Shop"
-            resValue "string", "main_component_name", "MunchboxShop"
         }
         admin {
             dimension "role"
             applicationId "com.cakeapp.mobile.admin"
             resValue "string", "app_name", "Munchbox Admin"
-            resValue "string", "main_component_name", "MunchboxAdmin"
         }
     }
     signingConfigs {
