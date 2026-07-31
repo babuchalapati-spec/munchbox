@@ -28,6 +28,7 @@ import AccountScreen from '../screens/AccountScreen';
 import DeliveryOrdersScreen from '../screens/DeliveryOrdersScreen';
 import DeliveryOrderDetailScreen from '../screens/DeliveryOrderDetailScreen';
 import NearbyDeliveriesScreen from '../screens/NearbyDeliveriesScreen';
+import DeliveryAreaScreen from '../screens/DeliveryAreaScreen';
 import ShopOwnerScreen from '../screens/ShopOwnerScreen';
 import EarningsScreen from '../screens/EarningsScreen';
 import RazorpayCheckoutScreen from '../screens/RazorpayCheckoutScreen';
@@ -103,6 +104,7 @@ const deliveryScreens = {
   DeliveryOrders: { component: DeliveryOrdersScreen, headerShown: false },
   NearbyDeliveries: { component: NearbyDeliveriesScreen, headerShown: false },
   DeliveryOrderDetail: { component: DeliveryOrderDetailScreen, title: 'Delivery' },
+  DeliveryArea: { component: DeliveryAreaScreen, title: 'Delivery area' },
   Earnings: { component: EarningsScreen, title: 'Earnings' },
   RazorpayCheckout: { component: RazorpayCheckoutScreen, title: 'Payment' },
   Chat: { component: ChatScreen, title: 'Chat' },
