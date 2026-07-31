@@ -11,6 +11,7 @@ const {
   assignDelivery,
   listDeliveryPartners,
   listAvailableOrders,
+  setWorkArea,
   claimOrder,
   updateOrderStatus,
   updateOrderLocation,
@@ -33,6 +34,7 @@ router.get('/coupons', protect, asyncHandler(listMyCoupons));
 router.get('/mine', protect, asyncHandler(listMyOrders));
 router.get('/assigned', protect, deliveryOnly, asyncHandler(listAssignedOrders));
 router.get('/available', protect, deliveryOnly, asyncHandler(listAvailableOrders));
+router.put('/work-area', protect, deliveryOnly, asyncHandler(setWorkArea));
 router.put('/:id/claim', protect, deliveryOnly, asyncHandler(claimOrder));
 router.get('/', protect, adminOrShop, requireShopSubscription, asyncHandler(listAllOrders));
 router.get('/delivery-partners', protect, adminOrShop, asyncHandler(listDeliveryPartners));

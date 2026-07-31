@@ -178,6 +178,21 @@ button:disabled {
   margin: 0;
   line-height: 1.2;
   font-weight: 700;
+  flex: 1;
+}
+
+/* Hidden on desktop — the sidebar is always expanded there. */
+.sidebar-toggle {
+  display: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  font-size: 1rem;
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 .sidebar nav {
@@ -353,6 +368,32 @@ button:disabled {
 .stat-num { font-size: 2rem; font-weight: 800; color: var(--brand); line-height: 1; }
 .stat-label { font-size: 0.85rem; color: var(--ink-soft); margin-top: 0.5rem; font-weight: 600; }
 
+.dash-section-title { font-size: 1.05rem; font-weight: 700; color: var(--ink); margin: 0 0 0.9rem; }
+.dash-nav-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 0.85rem;
+}
+.nav-tile {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  color: inherit;
+  text-decoration: none;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+.nav-tile:hover { border-color: var(--brand); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.nav-tile-icon { font-size: 1.6rem; }
+.nav-tile-label { font-size: 0.78rem; font-weight: 600; color: var(--ink-soft); line-height: 1.2; }
+
 .lock-screen {
   min-height: 100vh;
   display: flex;
@@ -405,6 +446,46 @@ button:disabled {
   color: var(--ink);
   padding-bottom: 0.9rem;
   border-bottom: 1px solid var(--line);
+}
+
+/* ---------- Mobile admin shell ----------
+   The sidebar was a fixed 240px column with no breakpoint at all, so on a phone-width
+   WebView (the Admin/Shop APKs) it ate most of the screen and squeezed the stat/category
+   tiles until they overflowed. Below this width the sidebar collapses to a slim top bar
+   with a menu toggle, and the Dashboard's nav-tile grid (mirroring the sidebar links)
+   becomes the primary way to move between pages. */
+@media (max-width: 860px) {
+  .admin-shell { flex-direction: column; min-height: auto; }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    padding: 0.8rem 1rem;
+  }
+  .sidebar-brand { margin: 0; }
+  .sidebar-toggle { display: flex; align-items: center; justify-content: center; }
+
+  .sidebar nav {
+    display: none;
+    margin-top: 1rem;
+    max-height: calc(100vh - 70px);
+    overflow-y: auto;
+  }
+  .sidebar-footer { display: none; }
+  .sidebar.menu-open nav,
+  .sidebar.menu-open .sidebar-footer { display: flex; }
+  .sidebar.menu-open .sidebar-footer { flex-direction: column; }
+
+  .content { padding: 1.1rem 1rem 2.5rem; max-width: 100%; }
+
+  .dash-hero { flex-direction: column; align-items: flex-start; padding: 1.4rem; }
+  .dash-hero-icon { font-size: 2.2rem; }
+  .dash-cat, .stat-tile { min-width: 130px; }
+  .dash-nav-grid { grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 0.6rem; }
+  .nav-tile { padding: 0.8rem 0.4rem; }
 }
 
 .card {

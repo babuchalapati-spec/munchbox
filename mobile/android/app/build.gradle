@@ -79,8 +79,8 @@ android {
         applicationId "com.cakeapp.mobile"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 45
-        versionName "18.0.2"
+        versionCode 46
+        versionName "18.1.0"
     }
 
     // Four separate apps out of one codebase. Each flavor gets its own applicationId so
@@ -142,6 +142,9 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    // FusedLocationProviderClient for the live-tracking foreground service (background GPS).
+    implementation("com.google.android.gms:play-services-location:21.3.0")
 }
 
 apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesAppBuildGradle(project)

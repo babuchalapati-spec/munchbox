@@ -29,6 +29,15 @@ const userSchema = new mongoose.Schema(
       avg: { type: Number, default: 0 },
       count: { type: Number, default: 0 },
     },
+    // Delivery partner's preferred work area (home base + radius) — a fallback for
+    // "nearby deliveries" when live GPS isn't available, and lets a partner keep seeing
+    // orders around where they usually work even before they've moved from home.
+    workArea: {
+      lat: { type: Number },
+      lng: { type: Number },
+      radiusKm: { type: Number, default: 5 },
+      updatedAt: { type: Date },
+    },
     // KYC for delivery partners: document photos + verification status.
     kyc: {
       status: { type: String, enum: ['pending', 'verified', 'rejected'], default: 'pending' },
@@ -37,6 +46,7 @@ const userSchema = new mongoose.Schema(
       licenseUrl: { type: String, default: '' }, // driving license
       rcUrl: { type: String, default: '' }, // bike RC book
       vehicleNumber: { type: String, default: '' },
+      vehicleType: { type: String, enum: ['motorcycle', 'ev', 'bicycle', 'other'], default: 'motorcycle' },
       rejectionReason: { type: String, default: '' },
       submittedAt: { type: Date, default: null },
     },

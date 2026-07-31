@@ -1,9 +1,19 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Linking } from 'react-native';
 import { WebView } from 'react-native-webview';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getOrder, updateOrderStatus, updateOrderLocation, confirmPickup, confirmDelivery } from '../api/orders';
-import { requestLocationPermission, watchPosition, clearWatch } from '../location';
-import { colors } from '../theme';
+import { API_URL } from '../api/client';
+import {
+  requestLocationPermission,
+  requestBackgroundLocationPermission,
+  requestNotificationPermission,
+  watchPosition,
+  clearWatch,
+} from '../location';
+import { hasBackgroundTracking, startBackgroundTracking, stopBackgroundTracking } from '../nativeLocationTracking';
+import { statusMeta } from '../deliveryStatus';
+import { colors, cardShadow } from '../theme';
 
 // Opens turn-by-turn navigation in Google Maps toward a destination.
 function navigateTo(lat, lng) {
@@ -15,17 +25,6 @@ function osmEmbed(lat, lng) {
   const d = 0.008;
   return `https://www.openstreetmap.org/export/embed.html?bbox=${lng - d},${lat - d},${lng + d},${lat + d}&layer=mapnik&marker=${lat},${lng}`;
 }
-
-const STATUS_LABEL = {
-  placed: 'Placed',
-  confirmed: 'Confirmed',
-  baking: 'Baking',
-  ready: 'Ready for pickup',
-  heading_to_shop: 'Heading to shop',
-  out_for_delivery: 'Out for delivery',
-  delivered: 'Delivered',
-  cancelled: 'Cancelled',
-};
 
 function openInMaps(lat, lng, label) {
   if (lat == null || lng == null) return;
@@ -54,7 +53,10 @@ export default function DeliveryOrderDetailScreen({ route, navigation }) {
   }, [load]);
 
   useEffect(() => {
-    return () => clearWatch(watchIdRef.current);
+    return () => {
+      clearWatch(watchIdRef.current);
+      stopBackgroundTracking();
+    };
   }, []);
 
   async function startBroadcasting() {
@@ -63,6 +65,27 @@ export default function DeliveryOrderDetailScreen({ route, navigation }) {
       Alert.alert('Location permission required', 'Enable location access to share live tracking with the customer.');
       return;
     }
+
+    // Prefer the native foreground service — it keeps sending GPS fixes even if the
+    // partner backgrounds the app or locks the phone. Only builds rebuilt with the native
+    // module (see nativeLocationTracking.js) have it; older installs fall through to the
+    // foreground-only watchPosition path below.
+    if (hasBackgroundTracking()) {
+      const bgGranted = await requestBackgroundLocationPermission();
+      requestNotificationPermission();
+      if (!bgGranted) {
+        Alert.alert(
+          'Allow location all the time',
+          'Location sharing will pause if you leave the app. Open Settings > Permissions > Location and choose "Allow all the time" so the customer keeps seeing you move.',
+          [{ text: 'Later' }, { text: 'Open Settings', onPress: () => Linking.openSettings() }]
+        );
+      }
+      const token = await AsyncStorage.getItem('cake_token');
+      startBackgroundTracking(orderId, token, API_URL);
+      setTracking(true);
+      return;
+    }
+
     setTracking(true);
     watchIdRef.current = watchPosition(
       ({ lat, lng }) => {
@@ -78,6 +101,7 @@ export default function DeliveryOrderDetailScreen({ route, navigation }) {
   }
 
   function stopBroadcasting() {
+    stopBackgroundTracking();
     clearWatch(watchIdRef.current);
     watchIdRef.current = null;
     setTracking(false);
@@ -143,10 +167,16 @@ export default function DeliveryOrderDetailScreen({ route, navigation }) {
     );
   }
 
+  const meta = statusMeta(order.status);
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Order #{order._id.slice(-6).toUpperCase()}</Text>
-      <Text style={styles.status}>{STATUS_LABEL[order.status] || order.status}</Text>
+      <View style={styles.titleRow}>
+        <Text style={styles.title}>Order #{order._id.slice(-6).toUpperCase()}</Text>
+        <View style={[styles.statusPill, { backgroundColor: meta.bg }]}>
+          <Text style={[styles.statusPillText, { color: meta.color }]}>{meta.label}</Text>
+        </View>
+      </View>
 
       {order.deliveryLocation?.lat != null && (
         <View style={styles.map}>
@@ -326,15 +356,18 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
   content: { padding: 16 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   title: { fontSize: 20, fontWeight: '700', color: colors.text },
-  status: { fontSize: 13, color: colors.primary, fontWeight: '600', marginTop: 4, marginBottom: 16, textTransform: 'capitalize' },
+  statusPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
+  statusPillText: { fontSize: 12, fontWeight: '700' },
   section: {
     marginBottom: 16,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
-    padding: 12,
+    borderRadius: 12,
+    padding: 14,
+    ...cardShadow(1),
   },
   sectionTitle: { fontSize: 13, fontWeight: '700', color: colors.primary, marginBottom: 6 },
   strong: { color: colors.text, fontWeight: '700', fontSize: 15, marginBottom: 2 },
@@ -351,18 +384,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   chatButtonText: { color: colors.primary, fontWeight: '600' },
-  button: { backgroundColor: colors.primary, borderRadius: 8, padding: 14, alignItems: 'center', marginBottom: 12 },
-  buttonText: { color: '#fff', fontWeight: '600' },
+  button: { backgroundColor: colors.primary, borderRadius: 10, padding: 14, alignItems: 'center', marginBottom: 12, ...cardShadow(2) },
+  buttonText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   trackingNote: { color: colors.muted, marginBottom: 10, fontSize: 12 },
   codeBox: {
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 10,
-    padding: 12,
+    borderRadius: 12,
+    padding: 14,
     marginBottom: 12,
+    ...cardShadow(1),
   },
-  map: { width: '100%', height: 180, borderRadius: 10, overflow: 'hidden', backgroundColor: colors.border, marginBottom: 10 },
+  map: { width: '100%', height: 180, borderRadius: 12, overflow: 'hidden', backgroundColor: colors.border, marginBottom: 10, ...cardShadow(1) },
   mapLoading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
   navRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
   navBtn: { flex: 1, borderWidth: 1, borderColor: colors.primary, borderRadius: 8, padding: 10, alignItems: 'center' },

@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { listLedger, getLedgerPdfUrl } from '../api/ledger';
 import { useAuth } from '../context/AuthContext';
 import WalletTopUp from '../components/WalletTopUp';
-import { colors } from '../theme';
+import { colors, cardShadow } from '../theme';
 
 const KIND_ICON = { tip: '🎉', commission: '➖', deposit: '💰', adjustment: '⚙️' };
 
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
   content: { padding: 16 },
   summaryRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
-  summaryCard: { flex: 1, borderRadius: 14, padding: 16 },
+  summaryCard: { flex: 1, borderRadius: 14, padding: 16, ...cardShadow(2) },
   summaryLabel: { color: 'rgba(255,255,255,0.9)', fontSize: 12, fontWeight: '600' },
   summaryValue: { color: '#fff', fontSize: 22, fontWeight: '800', marginTop: 6 },
   totalsRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },

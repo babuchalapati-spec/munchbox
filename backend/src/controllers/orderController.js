@@ -56,7 +56,17 @@ async function listAvailableOrders(req, res) {
   }
   const lat = Number(req.query.lat);
   const lng = Number(req.query.lng);
-  const here = Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+  // Live GPS wins when the app has it. Otherwise fall back to the partner's saved work
+  // area (set via PUT /orders/work-area) so they still see nearby orders before their
+  // phone has a fix, or if location permission is off — using their own chosen radius
+  // rather than the live-GPS default.
+  const usingWorkArea = !(Number.isFinite(lat) && Number.isFinite(lng)) && req.user.workArea?.lat != null;
+  const here = Number.isFinite(lat) && Number.isFinite(lng)
+    ? { lat, lng }
+    : usingWorkArea
+    ? { lat: req.user.workArea.lat, lng: req.user.workArea.lng }
+    : null;
+  const radiusKm = usingWorkArea ? req.user.workArea.radiusKm || 5 : MAX_PARTNER_RADIUS_KM;
 
   const orders = await Order.find({ assignedTo: null, status: { $in: AVAILABLE_STATUSES } })
     .populate('shop', 'name location address')
@@ -71,7 +81,7 @@ async function listAvailableOrders(req, res) {
   if (here) {
     // Only orders with a known pickup point are radius-checked — one with no location
     // yet (shouldn't normally happen) is left visible rather than silently hidden.
-    withDistance = withDistance.filter((w) => w.distanceToPickup == null || w.distanceToPickup <= MAX_PARTNER_RADIUS_KM);
+    withDistance = withDistance.filter((w) => w.distanceToPickup == null || w.distanceToPickup <= radiusKm);
     withDistance.sort((a, b) => {
       if (a.distanceToPickup == null) return 1;
       if (b.distanceToPickup == null) return -1;
@@ -82,6 +92,19 @@ async function listAvailableOrders(req, res) {
   res.json({
     available: withDistance.map(({ order, distanceToPickup }) => ({ ...order.toObject(), distanceToPickup })),
   });
+}
+
+// Partner sets/updates their preferred work area (home base + radius) — see
+// listAvailableOrders for how it's used as a fallback when live GPS isn't available.
+async function setWorkArea(req, res) {
+  const { lat, lng, radiusKm } = req.body;
+  if (typeof lat !== 'number' || typeof lng !== 'number') {
+    return res.status(400).json({ message: 'lat and lng must be numbers' });
+  }
+  const clampedRadius = Math.min(Math.max(Number(radiusKm) || 5, 1), 25);
+  req.user.workArea = { lat, lng, radiusKm: clampedRadius, updatedAt: new Date() };
+  await req.user.save();
+  res.json({ workArea: req.user.workArea });
 }
 
 // Partner claims an unassigned delivery for themselves.
@@ -1066,6 +1089,7 @@ module.exports = {
   assignDelivery,
   listDeliveryPartners,
   listAvailableOrders,
+  setWorkArea,
   claimOrder,
   updateOrderStatus,
   updateOrderLocation,

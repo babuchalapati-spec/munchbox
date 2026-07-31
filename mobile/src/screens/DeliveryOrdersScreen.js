@@ -2,17 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
 import { listAssignedOrders } from '../api/orders';
 import { useAuth } from '../context/AuthContext';
-import { colors } from '../theme';
-
-const STATUS_LABELS = {
-  placed: 'Placed',
-  confirmed: 'Confirmed',
-  baking: 'Baking',
-  heading_to_shop: 'Heading to shop',
-  out_for_delivery: 'Out for delivery',
-  delivered: 'Delivered',
-  cancelled: 'Cancelled',
-};
+import { colors, cardShadow } from '../theme';
+import { statusMeta } from '../deliveryStatus';
 
 export default function DeliveryOrdersScreen({ navigation }) {
   const { logout, user } = useAuth();
@@ -48,16 +39,19 @@ export default function DeliveryOrdersScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>My deliveries</Text>
-        <View style={{ flexDirection: 'row', gap: 16 }}>
-          <TouchableOpacity onPress={() => navigation.navigate('NearbyDeliveries')}>
-            <Text style={styles.headerLink}>Nearby</Text>
+        <View>
+          <Text style={styles.headerGreeting}>Hi {user?.name?.split(' ')[0] || 'there'} 👋</Text>
+          <Text style={styles.headerTitle}>My deliveries</Text>
+        </View>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.headerChip} onPress={() => navigation.navigate('NearbyDeliveries')}>
+            <Text style={styles.headerChipText}>🛵 Nearby</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('Earnings')}>
-            <Text style={styles.headerLink}>Earnings</Text>
+          <TouchableOpacity style={styles.headerChip} onPress={() => navigation.navigate('Earnings')}>
+            <Text style={styles.headerChipText}>💰 Earnings</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={logout}>
-            <Text style={styles.headerLink}>Log out</Text>
+          <TouchableOpacity style={styles.headerIconBtn} onPress={logout}>
+            <Text style={styles.headerIconBtnText}>⎋</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -86,19 +80,35 @@ export default function DeliveryOrdersScreen({ navigation }) {
           data={orders}
           keyExtractor={(o) => o._id}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.card}
-              onPress={() => navigation.navigate('DeliveryOrderDetail', { orderId: item._id })}
-            >
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>Order #{item._id.slice(-6).toUpperCase()}</Text>
-                <Text style={styles.status}>{STATUS_LABELS[item.status] || item.status}</Text>
-              </View>
-              <Text style={styles.cardMeta}>{item.user?.name} · {item.user?.phone || item.phone}</Text>
-              <Text style={styles.cardMeta}>{item.deliveryAddress}</Text>
-            </TouchableOpacity>
-          )}
+          renderItem={({ item }) => {
+            const meta = statusMeta(item.status);
+            const earning = Number(item.deliveryFee || 0) + Number(item.tipAmount || 0);
+            return (
+              <TouchableOpacity
+                style={styles.card}
+                activeOpacity={0.75}
+                onPress={() => navigation.navigate('DeliveryOrderDetail', { orderId: item._id })}
+              >
+                <View style={styles.cardTopRow}>
+                  <View style={styles.cardIcon}>
+                    <Text style={styles.cardIconText}>📦</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cardTitle}>Order #{item._id.slice(-6).toUpperCase()}</Text>
+                    <Text style={styles.cardMeta}>{item.user?.name} · {item.user?.phone || item.phone}</Text>
+                  </View>
+                  <View style={[styles.statusPill, { backgroundColor: meta.bg }]}>
+                    <Text style={[styles.statusPillText, { color: meta.color }]}>{meta.label}</Text>
+                  </View>
+                </View>
+                <View style={styles.cardDivider} />
+                <View style={styles.cardBottomRow}>
+                  <Text style={styles.cardAddress} numberOfLines={1}>📍 {item.deliveryAddress}</Text>
+                  {earning > 0 && <Text style={styles.cardEarning}>₹{earning}</Text>}
+                </View>
+              </TouchableOpacity>
+            );
+          }}
         />
       )}
     </View>

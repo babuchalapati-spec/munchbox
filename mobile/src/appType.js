@@ -29,6 +29,16 @@ export const LABEL_FOR_APP = {
   admin: 'Admin',
 };
 
+// The app's actual name, matching each flavor's android:label in build.gradle — what the
+// phone's home screen shows for that APK. Used anywhere in-app branding needs to match the
+// launcher name instead of always saying "Munchbox" (which is only the customer app's name).
+export const APP_NAME = {
+  customer: 'Munchbox',
+  partner: 'Munchbox Partner',
+  shop: 'Munchbox Shop',
+  admin: 'Munchbox Admin',
+};
+
 export function AppTypeProvider({appType = 'customer', children}) {
   return <AppTypeContext.Provider value={appType}>{children}</AppTypeContext.Provider>;
 }

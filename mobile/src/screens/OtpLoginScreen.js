@@ -11,7 +11,8 @@ import {
 import LinearGradient from 'react-native-linear-gradient';
 import {useAuth} from '../context/AuthContext';
 import {requestOtp} from '../api/auth';
-import {useAppType, ROLE_FOR_APP} from '../appType';
+import {useAppType, ROLE_FOR_APP, APP_NAME} from '../appType';
+import {requestPartnerLocationPermissions} from '../location';
 import {colors, brandGradient} from '../theme';
 
 export default function OtpLoginScreen({navigation}) {
@@ -48,6 +49,7 @@ export default function OtpLoginScreen({navigation}) {
     setBusy(true);
     try {
       await login(phone, password, expectedRole);
+      if (isPartnerApp) requestPartnerLocationPermissions();
       // On success the navigator switches to the app automatically.
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
@@ -103,6 +105,9 @@ export default function OtpLoginScreen({navigation}) {
         navigation.navigate('DeliveryRegister', {phone});
         return;
       }
+      // Ask for location (and "allow all the time") right at login, same as
+      // Swiggy/Zomato's partner apps — not the first time they start a delivery.
+      if (isPartnerApp) requestPartnerLocationPermissions();
       // On success the navigator switches to the app automatically.
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid OTP');
@@ -117,8 +122,10 @@ export default function OtpLoginScreen({navigation}) {
         <View style={styles.logoMark}>
           <Text style={styles.logoEmoji}>🍰</Text>
         </View>
-        <Text style={styles.title}>Munchbox</Text>
-        <Text style={styles.subtitle}>Cakes, food & catering — delivered warm</Text>
+        <Text style={styles.title}>{APP_NAME[appType] || 'Munchbox'}</Text>
+        <Text style={styles.subtitle}>
+          {isPartnerApp ? 'Deliver orders, earn on your schedule' : 'Cakes, food & catering — delivered warm'}
+        </Text>
       </LinearGradient>
 
       <View style={styles.formCard}>

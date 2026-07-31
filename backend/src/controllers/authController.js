@@ -33,6 +33,7 @@ function toPublicUser(user) {
     shop: user.shop || null,
     referralCode: user.referralCode || '',
     kyc: user.kyc || undefined,
+    workArea: user.workArea?.lat != null ? user.workArea : undefined,
     twoFactor:
       user.role === 'shop'
         ? { allowed: user.twoFactor?.allowed || false, enabled: user.twoFactor?.enabled || false }
@@ -588,7 +589,7 @@ async function reviewShopAccount(req, res) {
 
 // A delivery partner signs themselves up (phone-first). Account starts KYC 'pending'.
 async function deliveryRegister(req, res) {
-  const { name, phone, address, vehicleNumber } = req.body;
+  const { name, phone, address, vehicleNumber, vehicleType } = req.body;
   let { email, password } = req.body;
   if (!name || !phone) {
     return res.status(400).json({ message: 'Name and phone are required' });
@@ -614,7 +615,7 @@ async function deliveryRegister(req, res) {
     phone,
     address,
     role: 'delivery',
-    kyc: { status: 'pending', vehicleNumber: vehicleNumber || '', submittedAt: null },
+    kyc: { status: 'pending', vehicleNumber: vehicleNumber || '', vehicleType: vehicleType || 'motorcycle', submittedAt: null },
   });
   await ensureReferralCode(user);
 
@@ -626,13 +627,14 @@ async function submitKyc(req, res) {
   if (req.user.role !== 'delivery') {
     return res.status(403).json({ message: 'Only delivery partners submit KYC' });
   }
-  const { photoUrl, aadhaarUrl, licenseUrl, rcUrl, vehicleNumber } = req.body;
+  const { photoUrl, aadhaarUrl, licenseUrl, rcUrl, vehicleNumber, vehicleType } = req.body;
   const kyc = req.user.kyc || {};
   if (photoUrl !== undefined) kyc.photoUrl = photoUrl;
   if (aadhaarUrl !== undefined) kyc.aadhaarUrl = aadhaarUrl;
   if (licenseUrl !== undefined) kyc.licenseUrl = licenseUrl;
   if (rcUrl !== undefined) kyc.rcUrl = rcUrl;
   if (vehicleNumber !== undefined) kyc.vehicleNumber = vehicleNumber;
+  if (vehicleType !== undefined) kyc.vehicleType = vehicleType;
   kyc.status = 'pending';
   kyc.submittedAt = new Date();
   req.user.kyc = kyc;

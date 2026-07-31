@@ -5,7 +5,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { requestOtp, submitKyc, deliveryRegister } from '../api/auth';
 import { uploadImage } from '../api/upload';
+import { requestPartnerLocationPermissions } from '../location';
 import { colors } from '../theme';
+
+const VEHICLE_TYPES = [
+  { key: 'motorcycle', label: 'Motorcycle', icon: '🏍️' },
+  { key: 'ev', label: 'EV vehicle', icon: '⚡' },
+  { key: 'bicycle', label: 'Bicycle', icon: '🚲' },
+  { key: 'other', label: 'Other', icon: '🚗' },
+];
 
 const DOCS = [
   { key: 'photoUrl', label: 'Your photo' },
@@ -20,7 +28,7 @@ export default function DeliveryRegisterScreen({ navigation }) {
   const [step, setStep] = useState('phone'); // 'phone' | 'otp' | 'profile' | 'docs'
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
-  const [form, setForm] = useState({ name: '', vehicleNumber: '' });
+  const [form, setForm] = useState({ name: '', vehicleNumber: '', vehicleType: 'motorcycle' });
   const [docs, setDocs] = useState({});
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -71,7 +79,10 @@ export default function DeliveryRegisterScreen({ navigation }) {
     setBusy(true);
     try {
       const result = await loginWithOtp(phone, code, undefined, 'delivery');
-      if (result.user) return; // existing partner logged in; navigator switches
+      if (result.user) {
+        requestPartnerLocationPermissions(); // best-effort, doesn't block navigation
+        return; // existing partner logged in; navigator switches
+      }
       setStep('profile'); // new partner: collect registration + documents
     } catch (err) {
       setError(err.response?.data?.message || 'Invalid OTP');
@@ -123,8 +134,14 @@ export default function DeliveryRegisterScreen({ navigation }) {
     setError('');
     setBusy(true);
     try {
-      const { token } = await deliveryRegister({ name: form.name, phone, vehicleNumber: form.vehicleNumber });
+      const { token } = await deliveryRegister({
+        name: form.name,
+        phone,
+        vehicleNumber: form.vehicleNumber,
+        vehicleType: form.vehicleType,
+      });
       await AsyncStorage.setItem('cake_token', token);
+      requestPartnerLocationPermissions(); // best-effort, doesn't block the flow
       setStep('docs');
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed');
@@ -145,6 +162,7 @@ export default function DeliveryRegisterScreen({ navigation }) {
         licenseUrl: docs.licenseUrl.url,
         rcUrl: docs.rcUrl.url,
         vehicleNumber: form.vehicleNumber,
+        vehicleType: form.vehicleType,
       });
       refreshUser(updated);
     } catch (err) {
@@ -191,7 +209,22 @@ export default function DeliveryRegisterScreen({ navigation }) {
         <>
           <Text style={styles.sub}>New partner — let's set up your account first, then add your documents.</Text>
           <TextInput style={styles.input} placeholder="Full name" value={form.name} onChangeText={(v) => update('name', v)} />
-          <TextInput style={styles.input} placeholder="Bike number (e.g. TS09AB1234)" value={form.vehicleNumber} onChangeText={(v) => update('vehicleNumber', v)} />
+          <Text style={styles.section}>Vehicle type</Text>
+          <View style={styles.vehicleRow}>
+            {VEHICLE_TYPES.map((v) => (
+              <TouchableOpacity
+                key={v.key}
+                style={[styles.vehicleChip, form.vehicleType === v.key && styles.vehicleChipActive]}
+                onPress={() => update('vehicleType', v.key)}
+              >
+                <Text style={styles.vehicleChipIcon}>{v.icon}</Text>
+                <Text style={[styles.vehicleChipLabel, form.vehicleType === v.key && styles.vehicleChipLabelActive]}>
+                  {v.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <TextInput style={styles.input} placeholder="Vehicle number (e.g. TS09AB1234)" value={form.vehicleNumber} onChangeText={(v) => update('vehicleNumber', v)} />
           <TouchableOpacity style={styles.button} onPress={createAccount} disabled={busy}>
             {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Continue</Text>}
           </TouchableOpacity>
@@ -241,6 +274,22 @@ const styles = StyleSheet.create({
   input: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 12, marginBottom: 10 },
   code: { fontSize: 20, letterSpacing: 6, textAlign: 'center' },
   section: { fontSize: 14, fontWeight: '700', color: colors.text, marginTop: 10, marginBottom: 8 },
+  vehicleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  vehicleChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  vehicleChipActive: { borderColor: colors.primary, backgroundColor: '#fce4ec' },
+  vehicleChipIcon: { fontSize: 16 },
+  vehicleChipLabel: { fontSize: 13, fontWeight: '600', color: colors.muted },
+  vehicleChipLabelActive: { color: colors.primary },
   docRow: {
     flexDirection: 'row',
     alignItems: 'center',

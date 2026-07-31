@@ -60,6 +60,54 @@ export async function getCurrentPosition() {
   }
 }
 
+// "Allow all the time" — needed so the live-tracking foreground service (see
+// nativeLocationTracking.js) keeps getting GPS fixes once the Partner app is
+// backgrounded or the phone is locked, not just while it's on screen. Android 11+
+// generally won't grant this from an in-app dialog alone; the caller should fall back to
+// sending the partner to Settings if this resolves to false. No-op (true) below API 29,
+// where background location isn't a separate permission.
+export async function requestBackgroundLocationPermission() {
+  if (Platform.OS !== 'android' || Platform.Version < 29) return true;
+  try {
+    const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION, {
+      title: 'Allow location all the time',
+      message:
+        'Choose "Allow all the time" on the next screen so the customer keeps seeing your location if you leave the app.',
+      buttonPositive: 'Continue',
+    });
+    return granted === PermissionsAndroid.RESULTS.GRANTED;
+  } catch (err) {
+    return false;
+  }
+}
+
+// Needed on Android 13+ for the live-tracking foreground service's notification to actually
+// show. Not requesting it isn't fatal — tracking still runs, the partner just won't see the
+// "Sharing your live location" notice — so callers can ignore the result.
+export async function requestNotificationPermission() {
+  if (Platform.OS !== 'android' || Platform.Version < 33) return true;
+  try {
+    const granted = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+    return granted === PermissionsAndroid.RESULTS.GRANTED;
+  } catch (err) {
+    return false;
+  }
+}
+
+// Asks for every location-related permission the delivery partner will eventually need,
+// right at login/sign-up — same pattern as Swiggy/Zomato's partner apps, which front-load
+// the "allow location" and "allow all the time" prompts during onboarding instead of
+// surprising the partner with them mid-delivery. Best-effort: a partner who says no here
+// still gets asked again when they actually start a delivery (see DeliveryOrderDetailScreen).
+export async function requestPartnerLocationPermissions() {
+  const granted = await requestLocationPermission();
+  if (granted) {
+    await requestBackgroundLocationPermission();
+    await requestNotificationPermission();
+  }
+  return granted;
+}
+
 export function watchPosition(onUpdate, onError) {
   return Geolocation.watchPosition(
     (pos) => onUpdate({ lat: pos.coords.latitude, lng: pos.coords.longitude }),

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { listAvailableOrders, claimOrder } from '../api/orders';
 import { requestLocationPermission, getCurrentPosition } from '../location';
-import { colors } from '../theme';
+import { colors, cardShadow } from '../theme';
 
 function pickupOf(o) {
   if (o.type === 'courier') return { label: o.pickupAddress, loc: o.pickupLocation };
@@ -101,7 +101,11 @@ export default function NearbyDeliveriesScreen({ navigation }) {
                 <Text style={styles.cardTitle}>
                   {item.type === 'courier' ? '🛵 Food pickup' : `🏪 ${p.label}`}
                 </Text>
-                {item.distanceToPickup != null && <Text style={styles.dist}>{item.distanceToPickup} km away</Text>}
+                {item.distanceToPickup != null && (
+                  <View style={styles.distChip}>
+                    <Text style={styles.dist}>{item.distanceToPickup} km</Text>
+                  </View>
+                )}
               </View>
               <Text style={styles.meta}>Pick up: {p.label}{p.address ? ` · ${p.address}` : ''}</Text>
               <Text style={styles.meta}>Drop: {item.deliveryAddress}</Text>
@@ -149,15 +153,16 @@ const styles = StyleSheet.create({
   error: { color: '#c62828', padding: 12 },
   list: { padding: 16 },
   empty: { color: colors.muted, textAlign: 'center', marginTop: 40 },
-  card: { backgroundColor: colors.card, borderRadius: 10, borderWidth: 1, borderColor: colors.border, padding: 14, marginBottom: 12 },
+  card: { backgroundColor: colors.card, borderRadius: 12, borderWidth: 1, borderColor: colors.border, padding: 14, marginBottom: 12, ...cardShadow(1) },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardTitle: { fontWeight: '700', color: colors.text, flex: 1 },
+  cardTitle: { fontWeight: '700', color: colors.text, flex: 1, fontSize: 15 },
+  distChip: { backgroundColor: colors.bg, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
   dist: { color: colors.primary, fontWeight: '700', fontSize: 12 },
   meta: { fontSize: 12, color: colors.muted, marginTop: 4 },
-  earn: { fontSize: 13, fontWeight: '700', color: colors.text, marginTop: 8 },
+  earn: { fontSize: 15, fontWeight: '800', color: colors.success, marginTop: 8 },
   actions: { flexDirection: 'row', gap: 10, marginTop: 12 },
-  mapBtn: { flex: 1, borderWidth: 1, borderColor: colors.primary, borderRadius: 8, padding: 10, alignItems: 'center' },
+  mapBtn: { flex: 1, borderWidth: 1, borderColor: colors.primary, borderRadius: 10, padding: 10, alignItems: 'center' },
   mapBtnText: { color: colors.primary, fontWeight: '600', fontSize: 12 },
-  pickBtn: { flex: 1, backgroundColor: colors.primary, borderRadius: 8, padding: 10, alignItems: 'center' },
-  pickBtnText: { color: '#fff', fontWeight: '600', fontSize: 12 },
+  pickBtn: { flex: 1, backgroundColor: colors.primary, borderRadius: 10, padding: 10, alignItems: 'center', ...cardShadow(1) },
+  pickBtnText: { color: '#fff', fontWeight: '700', fontSize: 12 },
 });

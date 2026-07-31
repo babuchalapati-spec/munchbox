@@ -5,6 +5,7 @@ import { listOrders } from '../../api/orders';
 import { listShops } from '../../api/shops';
 import { listCateringRequests } from '../../api/catering';
 import { listDeliveryAccounts } from '../../api/delivery';
+import { ADMIN_NAV_SECTIONS } from '../../adminNav';
 
 const CATEGORY_INFO = [
   { key: 'cake', label: 'Cakes', icon: '🎂', color: '#c2185b' },
@@ -98,6 +99,30 @@ export default function Dashboard() {
             <span className="stat-label">Delivery partners</span>
           </button>
         )}
+      </div>
+
+      {/* Mirrors the sidebar nav as tappable tiles — the sidebar collapses behind a menu
+          button on mobile, so this is how a phone reaches every page without it. */}
+      <h2 className="dash-section-title">Manage</h2>
+      <div className="dash-nav-grid">
+        {ADMIN_NAV_SECTIONS.map((section) => {
+          if (section.adminOnly && !isAdmin) return null;
+          const visibleItems = section.items.filter((item) => item.to !== '/admin' && (!item.adminOnly || isAdmin));
+          if (!visibleItems.length) return null;
+          return visibleItems.map((item) =>
+            item.external ? (
+              <a key={item.to} href={item.to} target="_blank" rel="noopener noreferrer" className="nav-tile">
+                <span className="nav-tile-icon">{item.icon}</span>
+                <span className="nav-tile-label">{item.label}</span>
+              </a>
+            ) : (
+              <button key={item.to} className="nav-tile" onClick={() => navigate(item.to)}>
+                <span className="nav-tile-icon">{item.icon}</span>
+                <span className="nav-tile-label">{item.label}</span>
+              </button>
+            )
+          );
+        })}
       </div>
     </div>
   );
