@@ -13,6 +13,11 @@ export default defineConfig({
       name: 'shell',
       remotes: {
         orders_mf: process.env.VITE_ORDERS_MF_URL || 'http://localhost:5101/assets/remoteEntry.js',
+        shops_mf: process.env.VITE_SHOPS_MF_URL || 'http://localhost:5102/assets/remoteEntry.js',
+        delivery_mf: process.env.VITE_DELIVERY_MF_URL || 'http://localhost:5103/assets/remoteEntry.js',
+        finance_mf: process.env.VITE_FINANCE_MF_URL || 'http://localhost:5104/assets/remoteEntry.js',
+        catering_mf: process.env.VITE_CATERING_MF_URL || 'http://localhost:5105/assets/remoteEntry.js',
+        settings_mf: process.env.VITE_SETTINGS_MF_URL || 'http://localhost:5106/assets/remoteEntry.js',
       },
       shared: ['react', 'react-dom'],
     }),

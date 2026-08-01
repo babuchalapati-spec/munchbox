@@ -1,23 +1,17 @@
 import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 
-// Lazy-loaded across the network from orders-mf's own deployment — this import only
-// resolves at runtime, via the remoteEntry.js URL configured in vite.config.js. Adding
-// shops-mf/finance-mf/etc. later is one more lazy() + one more <Route>, same pattern.
+// Each lazy-loaded across the network from that module's own deployment — these imports
+// only resolve at runtime, via the remoteEntry.js URLs configured in vite.config.js.
+// Every one of the six admin domains is now an independently buildable, independently
+// deployable module; shipping a change to finance-mf never requires rebuilding this
+// shell or any other module.
 const OrdersApp = lazy(() => import('orders_mf/OrdersApp'));
-
-function Placeholder({ name }) {
-  return (
-    <div style={{ padding: '1.5rem', color: '#776b63' }}>
-      <h2 style={{ color: '#2c2420' }}>{name}</h2>
-      <p>
-        Not scaffolded as a running micro-frontend yet — see{' '}
-        <code>microfrontends/{name.toLowerCase().replace(/\s/g, '-')}/README.md</code> for
-        the plan. <code>orders-mf</code> is the one fully wired example proving the pattern.
-      </p>
-    </div>
-  );
-}
+const ShopsApp = lazy(() => import('shops_mf/ShopsApp'));
+const DeliveryApp = lazy(() => import('delivery_mf/DeliveryApp'));
+const FinanceApp = lazy(() => import('finance_mf/FinanceApp'));
+const CateringApp = lazy(() => import('catering_mf/CateringApp'));
+const SettingsApp = lazy(() => import('settings_mf/SettingsApp'));
 
 export default function App() {
   return (
@@ -38,11 +32,11 @@ export default function App() {
           <Suspense fallback={<div style={{ padding: '1.5rem' }}>Loading module…</div>}>
             <Routes>
               <Route path="/orders" element={<OrdersApp />} />
-              <Route path="/shops" element={<Placeholder name="Shops" />} />
-              <Route path="/delivery" element={<Placeholder name="Delivery" />} />
-              <Route path="/finance" element={<Placeholder name="Finance" />} />
-              <Route path="/catering" element={<Placeholder name="Catering" />} />
-              <Route path="/settings" element={<Placeholder name="Settings" />} />
+              <Route path="/shops" element={<ShopsApp />} />
+              <Route path="/delivery" element={<DeliveryApp />} />
+              <Route path="/finance" element={<FinanceApp />} />
+              <Route path="/catering" element={<CateringApp />} />
+              <Route path="/settings" element={<SettingsApp />} />
               <Route path="*" element={<OrdersApp />} />
             </Routes>
           </Suspense>

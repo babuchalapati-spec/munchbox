@@ -6,29 +6,32 @@ Read [`ARCHITECTURE.md`](../ARCHITECTURE.md) §7 first. This folder scaffolds th
 
 **The four React Native mobile apps are explicitly out of scope** — see ARCHITECTURE.md
 §7 for why. `pwa/` (the customer web app) would follow the same pattern with its own
-shell later; not scaffolded in this pass.
+shell — a natural next step once this one is adopted, not scaffolded in this pass.
 
 **Nothing in here replaces `admin/` yet.** The existing admin/shop dashboard keeps
-running unchanged. This is where migration work lands once the pattern below is proven
-and the team decides to invest in it.
+running unchanged. This is where migration work lands once the team decides to cut
+traffic over.
 
-## What's fully wired vs. stubbed
+## Modules
 
-| Module | Status | Port |
-|---|---|---|
-| [shell](shell/) | ✅ Working host app | 5100 |
-| [orders-mf](orders-mf/) | ✅ Working remote, exposes `OrdersApp` | 5101 |
-| [shops-mf](shops-mf/) | 📄 README stub only | 5102 (reserved) |
-| [delivery-mf](delivery-mf/) | 📄 README stub only | 5103 (reserved) |
-| [finance-mf](finance-mf/) | 📄 README stub only | 5104 (reserved) |
-| [catering-mf](catering-mf/) | 📄 README stub only | 5105 (reserved) |
-| [settings-mf](settings-mf/) | 📄 README stub only | 5106 (reserved) |
+| Module | Exposes | Port | Talks to (via gateway) |
+|---|---|---|---|
+| [shell](shell/) | — (host) | 5100 | — |
+| [orders-mf](orders-mf/) | `OrdersApp` | 5101 | `/api/orders` |
+| [shops-mf](shops-mf/) | `ShopsApp` | 5102 | `/api/catalog` |
+| [delivery-mf](delivery-mf/) | `DeliveryApp` | 5103 | `/api/delivery` |
+| [finance-mf](finance-mf/) | `FinanceApp` | 5104 | `/api/finance` |
+| [catering-mf](catering-mf/) | `CateringApp` | 5105 | `/api/catering` |
+| [settings-mf](settings-mf/) | `SettingsApp` | 5106 | `/api/config` |
 
-`shell` + `orders-mf` are real, buildable Vite apps — verified in this pass with
-`npm install && vite build` in each, then `vite preview` serving both and confirming the
-shell's HTML and orders-mf's `remoteEntry.js` are both reachable. That's the proof this
-pattern works end to end; the remaining five modules are documented stubs following the
-exact same recipe (see "Building a new module" below).
+All six are real, buildable Vite apps — every one builds cleanly and boot-serves its
+`remoteEntry.js`/HTML (verified with `vite build` + `vite preview` across the whole set).
+Each module's UI mirrors its corresponding page in `admin/src/pages/Admin/` (shops-mf,
+for instance, carries over the same "visible to customers" check added there this
+session) and calls the gateway exactly the way it will once the matching backend service
+actually exists — until then, every one of them shows a clear, expected "reach the
+gateway once that service is migrated" message rather than failing silently. See
+ARCHITECTURE.md §6 for the migration order each module's message references.
 
 ## How Module Federation works here
 
@@ -53,12 +56,26 @@ across the network. `orders-mf` also runs completely standalone
 (`npm run dev` → `http://localhost:5101`) for independent development, which is the
 other half of the point: a team working on orders never needs the shell running at all.
 
-## Building a new module (e.g. shops-mf)
+## Building the next module (e.g. a customer-PWA shell + browse-mf)
 
 1. Copy `orders-mf`'s structure: `package.json`, `vite.config.js`, `src/App.jsx`,
    `src/main.jsx`, `index.html`. Rename the federation `name`/`exposes` key.
-2. Add one line to `shell/vite.config.js`'s `remotes` map and one `<Route>` +
-   `lazy(() => import('shops_mf/ShopsApp'))` in `shell/src/App.jsx`.
-3. Point it at the gateway (`VITE_GATEWAY_URL`) the same way `orders-mf` does — never at
-   a specific microservice directly, so the gateway's monolith-fallback keeps working
-   during migration.
+2. Add one line to the relevant shell's `vite.config.js` `remotes` map and one `<Route>`
+   + `lazy(() => import('...'))` in that shell's `src/App.jsx`.
+3. Point it at the gateway (`VITE_GATEWAY_URL`) the same way every existing module does —
+   never at a specific microservice directly, so the gateway's monolith-fallback keeps
+   working during migration.
+
+## Running all six modules + the shell together
+
+```
+for d in orders-mf shops-mf delivery-mf finance-mf catering-mf settings-mf shell; do
+  (cd $d && npm install && npm run build) &
+done; wait
+for d in orders-mf shops-mf delivery-mf finance-mf catering-mf settings-mf shell; do
+  (cd $d && npm run preview &)
+done
+```
+
+Then open `http://localhost:5100` and click through every nav item — each one loads its
+module fresh across the network from that module's own preview server.
