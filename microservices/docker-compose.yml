@@ -1,0 +1,67 @@
+version: "3.9"
+
+# Brings up the gateway + every service skeleton + the existing monolith so you can
+# develop against the target architecture locally. See README.md in this folder.
+# Each service is currently just a `GET /health` skeleton (ARCHITECTURE.md §9) — this
+# compose file proves they can all run and be routed to together, ahead of any real
+# business logic moving in.
+
+services:
+  monolith:
+    build:
+      context: ../backend
+    ports:
+      - "5001:5001"
+    env_file:
+      - ../backend/.env
+
+  gateway:
+    build:
+      context: ./gateway
+    ports:
+      - "4000:4000"
+    environment:
+      - MONOLITH_URL=http://monolith:5001
+      - IDENTITY_SERVICE_URL=http://identity-service:4001
+      - CATALOG_SERVICE_URL=http://catalog-service:4002
+      - ORDER_SERVICE_URL=http://order-service:4003
+      - DELIVERY_SERVICE_URL=http://delivery-service:4004
+      - CATERING_SERVICE_URL=http://catering-service:4005
+      - FINANCE_SERVICE_URL=http://finance-service:4006
+      - PAYMENT_SERVICE_URL=http://payment-service:4007
+      - NOTIFICATION_SERVICE_URL=http://notification-service:4008
+      - ADMIN_CONFIG_SERVICE_URL=http://admin-config-service:4009
+      - MEDIA_SERVICE_URL=http://media-service:4010
+    depends_on:
+      - monolith
+
+  identity-service:
+    build: { context: ./identity-service }
+    ports: ["4001:4001"]
+  catalog-service:
+    build: { context: ./catalog-service }
+    ports: ["4002:4002"]
+  order-service:
+    build: { context: ./order-service }
+    ports: ["4003:4003"]
+  delivery-service:
+    build: { context: ./delivery-service }
+    ports: ["4004:4004"]
+  catering-service:
+    build: { context: ./catering-service }
+    ports: ["4005:4005"]
+  finance-service:
+    build: { context: ./finance-service }
+    ports: ["4006:4006"]
+  payment-service:
+    build: { context: ./payment-service }
+    ports: ["4007:4007"]
+  notification-service:
+    build: { context: ./notification-service }
+    ports: ["4008:4008"]
+  admin-config-service:
+    build: { context: ./admin-config-service }
+    ports: ["4009:4009"]
+  media-service:
+    build: { context: ./media-service }
+    ports: ["4010:4010"]

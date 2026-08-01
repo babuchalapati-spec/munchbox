@@ -6,6 +6,7 @@ node_modules/
 # Environment / secrets — never commit real credentials
 .env
 */.env
+*/*/.env
 **/.env.local
 
 # Backend uploads (user-generated content, not source)
@@ -28,6 +29,7 @@ mobile/android/local.properties
 admin/dist/
 pwa/dist/
 pwa/dev-dist/
+microfrontends/*/dist/
 
 # OS / editor
 .DS_Store
