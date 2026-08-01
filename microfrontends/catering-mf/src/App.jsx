@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 // here is adopted.
 const GATEWAY_URL = import.meta.env.VITE_GATEWAY_URL || 'http://localhost:4000';
 
-const STATUS_COLOR = { requested: '#a86b00', quoted: '#1565c0', accepted: '#2e7d32', declined: '#c62828' };
+const STATUS_PILL = { requested: 'pill pill-warn', quoted: 'pill pill-info', accepted: 'pill pill-good', declined: 'pill pill-bad' };
 
 export default function CateringApp() {
   const [requests, setRequests] = useState(null);
@@ -25,31 +25,55 @@ export default function CateringApp() {
   }, []);
 
   return (
-    <div style={{ fontFamily: 'system-ui, sans-serif', padding: '1.5rem' }}>
-      <h2 style={{ margin: '0 0 0.5rem' }}>Catering requests</h2>
-      <p style={{ color: '#776b63', fontSize: '0.85rem', marginTop: 0 }}>catering-mf — talking to {GATEWAY_URL}</p>
+    <div className="mf-page">
+      <div className="mf-header">
+        <div>
+          <div className="mf-title">Catering requests</div>
+          <div className="mf-subtitle">catering-mf · {GATEWAY_URL}</div>
+        </div>
+      </div>
+
       {error && (
-        <p style={{ color: '#c62828' }}>
-          Could not reach the gateway ({error}). Expected until catering-service is actually
-          migrated — recommended first real split (ARCHITECTURE.md §6, Phase 2).
+        <p className="error">
+          Could not reach the gateway ({error}). Expected until catering-service is actually migrated —
+          recommended first real split (ARCHITECTURE.md §6, Phase 2) — unless this is a real error.
         </p>
       )}
-      {!error && requests === null && <p>Loading…</p>}
-      {Array.isArray(requests) && requests.length === 0 && <p>No catering requests yet.</p>}
+
+      {!error && requests === null && (
+        <div className="table-wrap" style={{ padding: 12 }}>
+          {[0, 1, 2].map((i) => <div key={i} className="skeleton-row" />)}
+        </div>
+      )}
+
+      {Array.isArray(requests) && requests.length === 0 && (
+        <div className="mf-empty">
+          <div className="mf-empty-icon">🍽️</div>
+          No catering requests yet.
+        </div>
+      )}
+
       {Array.isArray(requests) && requests.length > 0 && (
-        <ul style={{ listStyle: 'none', padding: 0 }}>
-          {requests.map((r) => (
-            <li
-              key={r._id}
-              style={{ padding: '0.75rem', borderBottom: '1px solid #f0ebe5', display: 'flex', justifyContent: 'space-between' }}
-            >
-              <span>{r.eventType || 'Catering request'} — {r.guestCount || '?'} guests</span>
-              <span style={{ color: STATUS_COLOR[r.status] || '#776b63', fontWeight: 600, textTransform: 'capitalize' }}>
-                {r.status}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Event</th>
+                <th>Guests</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {requests.map((r) => (
+                <tr key={r._id}>
+                  <td>{r.eventType || 'Catering request'}</td>
+                  <td>{r.guestCount || '—'}</td>
+                  <td><span className={STATUS_PILL[r.status] || 'pill'}>{r.status}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

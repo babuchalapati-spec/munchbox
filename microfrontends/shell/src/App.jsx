@@ -2,6 +2,15 @@ import { Suspense, lazy, useState } from 'react';
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import Login from './Login.jsx';
 
+const NAV = [
+  { to: '/orders', icon: '🧾', label: 'Orders' },
+  { to: '/shops', icon: '🏪', label: 'Shops' },
+  { to: '/delivery', icon: '🛵', label: 'Delivery' },
+  { to: '/finance', icon: '📒', label: 'Finance' },
+  { to: '/catering', icon: '🍽️', label: 'Catering' },
+  { to: '/settings', icon: '⚙️', label: 'Settings' },
+];
+
 // Each lazy-loaded across the network from that module's own deployment — these imports
 // only resolve at runtime, via the remoteEntry.js URLs configured in vite.config.js.
 // Every one of the six admin domains is now an independently buildable, independently
@@ -35,23 +44,26 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'system-ui, sans-serif' }}>
-        <nav style={{ width: 200, padding: '1rem', borderRight: '1px solid #e6e0da', display: 'flex', flexDirection: 'column' }}>
-          <h3 style={{ marginTop: 0 }}>Munchbox</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-            <NavLink to="/orders">Orders</NavLink>
-            <NavLink to="/shops">Shops</NavLink>
-            <NavLink to="/delivery">Delivery</NavLink>
-            <NavLink to="/finance">Finance</NavLink>
-            <NavLink to="/catering">Catering</NavLink>
-            <NavLink to="/settings">Settings</NavLink>
+      <div className="admin-shell">
+        <aside className="sidebar">
+          <div className="sidebar-brand">
+            <div className="sidebar-brand-mark">🍰</div>
+            <h2>Munchbox</h2>
           </div>
-          <button onClick={logout} style={{ padding: 8, background: 'none', border: '1px solid #e6e0da', borderRadius: 8, cursor: 'pointer' }}>
-            Log out
-          </button>
-        </nav>
-        <main style={{ flex: 1 }}>
-          <Suspense fallback={<div style={{ padding: '1.5rem' }}>Loading module…</div>}>
+          <nav>
+            {NAV.map((item) => (
+              <NavLink key={item.to} to={item.to} className={({ isActive }) => (isActive ? 'active' : '')}>
+                <span className="nav-icon">{item.icon}</span>
+                {item.label}
+              </NavLink>
+            ))}
+          </nav>
+          <div className="sidebar-footer">
+            <button onClick={logout}>Log out</button>
+          </div>
+        </aside>
+        <main style={{ flex: 1, overflow: 'auto' }}>
+          <Suspense fallback={<div className="skeleton-row" style={{ maxWidth: 400 }} />}>
             <Routes>
               <Route path="/orders" element={<OrdersApp />} />
               <Route path="/shops" element={<ShopsApp />} />

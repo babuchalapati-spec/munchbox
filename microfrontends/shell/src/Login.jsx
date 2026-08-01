@@ -36,37 +36,28 @@ export default function Login({ onLoggedIn }) {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', fontFamily: 'system-ui, sans-serif' }}>
-      <form onSubmit={submit} style={{ width: 320, padding: '2rem', border: '1px solid #e6e0da', borderRadius: 12 }}>
-        <h2 style={{ marginTop: 0 }}>Munchbox Admin</h2>
-        <p style={{ color: '#776b63', fontSize: '0.85rem', marginTop: -8 }}>
-          Signs in via {GATEWAY_URL} → identity-service (currently proxied to the live monolith).
-        </p>
-        {error && <p style={{ color: '#c62828', fontSize: '0.85rem' }}>{error}</p>}
-        <label style={{ display: 'block', marginBottom: 10 }}>
-          Email
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            style={{ display: 'block', width: '100%', padding: 8, marginTop: 4, boxSizing: 'border-box' }}
-          />
-        </label>
-        <label style={{ display: 'block', marginBottom: 16 }}>
-          Password
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            style={{ display: 'block', width: '100%', padding: 8, marginTop: 4, boxSizing: 'border-box' }}
-          />
-        </label>
-        <button type="submit" disabled={busy} style={{ width: '100%', padding: 10, background: '#c2185b', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600 }}>
-          {busy ? 'Signing in…' : 'Sign in'}
-        </button>
-      </form>
+    <div className="login-split">
+      <div className="login-hero">
+        <div className="login-hero-mark">🍰</div>
+        <h1>Munchbox</h1>
+        <p>Admin — orders, shops, delivery, finance, catering and settings, each an independent module.</p>
+      </div>
+      <div className="login-form-side">
+        <form onSubmit={submit} className="login-form">
+          <h2>Sign in</h2>
+          <p className="login-sub">via {GATEWAY_URL} → identity-service</p>
+          {error && <p className="error">{error}</p>}
+          <label>
+            Email
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+          </label>
+          <label>
+            Password
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          </label>
+          <button type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
+        </form>
+      </div>
     </div>
   );
 }

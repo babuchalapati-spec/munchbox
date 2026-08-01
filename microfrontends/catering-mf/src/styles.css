@@ -1,0 +1,216 @@
+/* Shared design tokens + components for every micro-frontend (shell + 6 modules).
+   Ported from admin/src/index.css so the microfrontend product looks like the SAME
+   app as the existing admin dashboard, not a second design. Each module keeps its own
+   copy (independent deploys are the point of this architecture — see ARCHITECTURE.md
+   §7) — if this drifts across copies, that's the signal to extract a real shared
+   @munchbox/ui package, not a reason to avoid duplicating it now. */
+
+* { box-sizing: border-box; }
+
+:root {
+  --ink: #2c2420;
+  --ink-soft: #776b63;
+  --line: #e6e0da;
+  --bg: #f4f1ed;
+  --card: #ffffff;
+  --brand: #c2185b;
+  --brand-2: #e23364;
+  --gradient: linear-gradient(135deg, #ff7a59 0%, #e23364 55%, #8e24aa 100%);
+  --shadow-sm: 0 1px 2px rgba(44, 36, 32, 0.06);
+  --shadow-md: 0 4px 16px rgba(44, 36, 32, 0.08);
+  --radius: 12px;
+}
+
+html { -webkit-font-smoothing: antialiased; }
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Inter, system-ui, -apple-system, Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+
+h1, h2, h3 { font-family: inherit; letter-spacing: -0.01em; margin: 0; }
+
+button {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.6rem 1.1rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--brand);
+  color: #fff;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.05s ease;
+}
+button:hover:not(:disabled) { filter: brightness(1.06); }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.error {
+  color: #c62828;
+  font-size: 0.85rem;
+  margin: 0 0 1rem;
+  background: #fdecea;
+  border: 1px solid #f5c6c1;
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+}
+
+/* ---------- Module page shell ---------- */
+.mf-page { padding: 1.75rem 2rem; max-width: 1100px; }
+.mf-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; margin-bottom: 1.4rem; flex-wrap: wrap; }
+.mf-title { font-size: 1.4rem; font-weight: 800; }
+.mf-subtitle { color: var(--ink-soft); font-size: 0.82rem; margin-top: 0.2rem; }
+.mf-search {
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  min-width: 220px;
+  background: var(--card);
+}
+.mf-search:focus { outline: 2px solid var(--brand-2); outline-offset: -1px; }
+
+/* ---------- Cards / stats ---------- */
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.4rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.stat-tile {
+  flex: 1;
+  min-width: 150px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.3rem;
+  box-shadow: var(--shadow-sm);
+}
+.stat-num { font-size: 1.7rem; font-weight: 800; color: var(--brand); line-height: 1; }
+.stat-label { font-size: 0.8rem; color: var(--ink-soft); margin-top: 0.4rem; font-weight: 600; }
+
+/* ---------- Tables ---------- */
+.table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--line); }
+.table { width: 100%; border-collapse: collapse; background: var(--card); }
+.table th {
+  text-align: left;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  background: #faf7f4;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.table td { text-align: left; padding: 0.75rem 0.9rem; border-bottom: 1px solid #f0ebe5; font-size: 0.87rem; }
+.table tbody tr:last-child td { border-bottom: none; }
+.table tbody tr:hover { background: #fbf6f2; }
+
+/* ---------- Status pills ---------- */
+.pill {
+  display: inline-block;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: #ede8e3;
+  color: #5a4f47;
+  text-transform: capitalize;
+  letter-spacing: 0.02em;
+}
+.pill-good { background: #d4edda; color: #1e6b32; }
+.pill-bad { background: #f8d7da; color: #a52834; }
+.pill-warn { background: #fff3cd; color: #7a5c00; }
+.pill-info { background: #e3f0fd; color: #1565c0; }
+
+/* ---------- Loading skeleton ---------- */
+@keyframes mf-shimmer { 0% { background-position: -200px 0; } 100% { background-position: calc(200px + 100%) 0; } }
+.skeleton-row {
+  height: 44px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  background: linear-gradient(90deg, #f0ebe5 25%, #f7f3ef 37%, #f0ebe5 63%);
+  background-size: 400px 100%;
+  animation: mf-shimmer 1.3s ease-in-out infinite;
+}
+
+/* ---------- Empty state ---------- */
+.mf-empty { text-align: center; padding: 3rem 1rem; color: var(--ink-soft); }
+.mf-empty-icon { font-size: 2.2rem; margin-bottom: 0.5rem; }
+
+/* ---------- Sidebar shell (shell app only) ---------- */
+.admin-shell { display: flex; min-height: 100vh; }
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: linear-gradient(180deg, #241d19 0%, #34201f 100%);
+  color: #fff;
+  padding: 1.4rem 1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+.sidebar-brand { display: flex; align-items: center; gap: 0.65rem; margin: 0 0.25rem 1.6rem; }
+.sidebar-brand-mark {
+  width: 38px; height: 38px; border-radius: 11px; background: var(--gradient);
+  display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
+  flex-shrink: 0; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+.sidebar-brand h2 { font-size: 1.02rem; line-height: 1.2; font-weight: 700; }
+.sidebar nav { display: flex; flex-direction: column; gap: 0.15rem; flex: 1; }
+.sidebar nav a, .sidebar nav a:visited {
+  color: rgba(255, 255, 255, 0.82);
+  text-decoration: none;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.sidebar nav a:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+.sidebar nav a.active { background: var(--gradient); color: #fff; font-weight: 600; box-shadow: 0 2px 8px rgba(226, 51, 100, 0.35); }
+.nav-icon { width: 18px; text-align: center; flex-shrink: 0; font-size: 0.95rem; }
+.sidebar-footer { border-top: 1px solid rgba(255, 255, 255, 0.12); padding-top: 1rem; margin-top: 0.75rem; }
+.sidebar-footer button { width: 100%; background: rgba(255, 255, 255, 0.08); color: #fff; }
+.sidebar-footer button:hover { background: rgba(255, 255, 255, 0.16); }
+
+/* ---------- Login (shell only) ---------- */
+.login-split { min-height: 100vh; display: grid; grid-template-columns: 1.1fr 1fr; }
+.login-hero { background: var(--gradient); color: #fff; padding: 3rem; display: flex; flex-direction: column; justify-content: center; }
+.login-hero-mark {
+  width: 72px; height: 72px; border-radius: 50%; background: rgba(255, 255, 255, 0.22);
+  display: flex; align-items: center; justify-content: center; font-size: 2.4rem; margin-bottom: 0.5rem;
+}
+.login-hero h1 { font-size: 2.2rem; margin: 0.5rem 0 0.25rem; }
+.login-hero p { font-size: 1.02rem; opacity: 0.95; margin: 0; }
+.login-form-side { display: flex; align-items: center; justify-content: center; padding: 2rem; }
+.login-form { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 0.9rem; }
+.login-form h2 { font-size: 1.5rem; }
+.login-sub { margin: -6px 0 4px; color: var(--ink-soft); font-size: 0.85rem; }
+.login-form label { display: block; font-size: 0.82rem; font-weight: 600; color: var(--ink-soft); }
+.login-form input {
+  display: block; width: 100%; margin-top: 0.35rem; padding: 0.65rem 0.8rem;
+  border: 1px solid var(--line); border-radius: 8px; font: inherit; background: var(--card);
+}
+.login-form input:focus { outline: 2px solid var(--brand-2); outline-offset: -1px; }
+
+@media (max-width: 860px) {
+  .login-split { grid-template-columns: 1fr; }
+  .admin-shell { flex-direction: column; }
+  .sidebar { width: 100%; height: auto; position: static; }
+  .mf-page { padding: 1.1rem; }
+}

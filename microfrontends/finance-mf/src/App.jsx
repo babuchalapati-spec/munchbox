@@ -19,32 +19,78 @@ export default function FinanceApp() {
       .catch((err) => setError(err.message));
   }, []);
 
-  const credits = (ledger?.entries || []).filter((e) => e.direction === 'credit').reduce((s, e) => s + Number(e.amount || 0), 0);
-  const debits = (ledger?.entries || []).filter((e) => e.direction === 'debit').reduce((s, e) => s + Number(e.amount || 0), 0);
+  const entries = ledger?.entries || [];
+  const credits = entries.filter((e) => e.direction === 'credit').reduce((s, e) => s + Number(e.amount || 0), 0);
+  const debits = entries.filter((e) => e.direction === 'debit').reduce((s, e) => s + Number(e.amount || 0), 0);
 
   return (
-    <div style={{ fontFamily: 'system-ui, sans-serif', padding: '1.5rem' }}>
-      <h2 style={{ margin: '0 0 0.5rem' }}>Finance</h2>
-      <p style={{ color: '#776b63', fontSize: '0.85rem', marginTop: 0 }}>finance-mf — talking to {GATEWAY_URL}</p>
+    <div className="mf-page">
+      <div className="mf-header">
+        <div>
+          <div className="mf-title">Finance</div>
+          <div className="mf-subtitle">finance-mf · {GATEWAY_URL}</div>
+        </div>
+      </div>
+
       {error && (
-        <p style={{ color: '#c62828' }}>
-          Could not reach the gateway ({error}). Expected until finance-service is actually
-          migrated (ARCHITECTURE.md §6, Phase 5) — the highest-stakes split, migrate with
-          reconciliation tests comparing wallet balances exactly.
+        <p className="error">
+          Could not reach the gateway ({error}). Expected until finance-service is actually migrated
+          (ARCHITECTURE.md §6, Phase 5) — the highest-stakes split, migrate with reconciliation tests
+          comparing wallet balances exactly, unless this is a real error.
         </p>
       )}
-      {!error && ledger === null && <p>Loading…</p>}
-      {ledger && (
-        <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-          <div style={{ flex: 1, background: '#e6f4ea', borderRadius: 10, padding: '1rem' }}>
-            <div style={{ fontSize: '0.75rem', color: '#2e7d32', fontWeight: 700 }}>TOTAL CREDITS</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#2e7d32' }}>₹{credits.toFixed(2)}</div>
-          </div>
-          <div style={{ flex: 1, background: '#fdecea', borderRadius: 10, padding: '1rem' }}>
-            <div style={{ fontSize: '0.75rem', color: '#c62828', fontWeight: 700 }}>TOTAL DEBITS</div>
-            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#c62828' }}>₹{debits.toFixed(2)}</div>
-          </div>
+
+      {!error && ledger === null && (
+        <div className="stat-row">
+          {[0, 1].map((i) => <div key={i} className="skeleton-row" style={{ flex: 1, height: 80 }} />)}
         </div>
+      )}
+
+      {ledger && (
+        <>
+          <div className="stat-row">
+            <div className="stat-tile">
+              <div className="stat-num" style={{ color: '#2e7d32' }}>₹{credits.toFixed(2)}</div>
+              <div className="stat-label">Total credits</div>
+            </div>
+            <div className="stat-tile">
+              <div className="stat-num" style={{ color: '#c62828' }}>₹{debits.toFixed(2)}</div>
+              <div className="stat-label">Total debits</div>
+            </div>
+          </div>
+
+          {entries.length === 0 ? (
+            <div className="mf-empty">
+              <div className="mf-empty-icon">📒</div>
+              No ledger activity yet.
+            </div>
+          ) : (
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Kind</th>
+                    <th>Description</th>
+                    <th>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {entries.map((e) => (
+                    <tr key={e._id}>
+                      <td className="mf-subtitle">{new Date(e.createdAt).toLocaleDateString()}</td>
+                      <td>{e.kind}</td>
+                      <td>{e.description}</td>
+                      <td style={{ color: e.direction === 'credit' ? '#2e7d32' : '#c62828', fontWeight: 700 }}>
+                        {e.direction === 'credit' ? '+' : '-'}₹{Number(e.amount || 0).toFixed(2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

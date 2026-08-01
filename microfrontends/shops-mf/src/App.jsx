@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 // Exposed to the shell as "shops_mf/ShopsApp" (see vite.config.js). Talks to
 // catalog-service via the gateway — never a specific service directly, so the
@@ -21,9 +21,12 @@ function visibility(shop) {
   return { text: 'Live to customers', ok: true };
 }
 
+const CATEGORY_ICON = { cake: '🎂', restaurant: '🍔', catering: '🍽️' };
+
 export default function ShopsApp() {
   const [shops, setShops] = useState(null);
   const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('munchbox_admin_token');
@@ -36,42 +39,90 @@ export default function ShopsApp() {
       .catch((err) => setError(err.message));
   }, []);
 
+  const filtered = useMemo(() => {
+    if (!shops) return null;
+    const q = search.trim().toLowerCase();
+    if (!q) return shops;
+    return shops.filter((s) => s.name.toLowerCase().includes(q) || s.address?.toLowerCase().includes(q));
+  }, [shops, search]);
+
+  const liveCount = shops?.filter((s) => visibility(s).ok).length ?? 0;
+
   return (
-    <div style={{ fontFamily: 'system-ui, sans-serif', padding: '1.5rem' }}>
-      <h2 style={{ margin: '0 0 0.5rem' }}>Shops</h2>
-      <p style={{ color: '#776b63', fontSize: '0.85rem', marginTop: 0 }}>shops-mf — talking to {GATEWAY_URL}</p>
+    <div className="mf-page">
+      <div className="mf-header">
+        <div>
+          <div className="mf-title">Shops</div>
+          <div className="mf-subtitle">shops-mf · {GATEWAY_URL}</div>
+        </div>
+        {shops && shops.length > 0 && (
+          <input className="mf-search" placeholder="Search by name or address…" value={search} onChange={(e) => setSearch(e.target.value)} />
+        )}
+      </div>
+
       {error && (
-        <p style={{ color: '#c62828' }}>
-          Could not reach the gateway ({error}). Expected until catalog-service is actually
-          migrated (ARCHITECTURE.md §6, Phase 4).
+        <p className="error">
+          Could not reach the gateway ({error}). Expected until catalog-service is actually migrated
+          (ARCHITECTURE.md §6, Phase 4) unless this is a real error.
         </p>
       )}
-      {!error && shops === null && <p>Loading…</p>}
-      {shops?.length === 0 && <p>No shops yet.</p>}
+
+      {!error && shops === null && (
+        <div className="table-wrap" style={{ padding: 12 }}>
+          {[0, 1, 2, 3].map((i) => <div key={i} className="skeleton-row" />)}
+        </div>
+      )}
+
       {shops && shops.length > 0 && (
-        <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-          <thead>
-            <tr style={{ textAlign: 'left', borderBottom: '2px solid #e6e0da' }}>
-              <th style={{ padding: '0.5rem' }}>Name</th>
-              <th style={{ padding: '0.5rem' }}>Category</th>
-              <th style={{ padding: '0.5rem' }}>Visible to customers</th>
-            </tr>
-          </thead>
-          <tbody>
-            {shops.map((s) => {
-              const v = visibility(s);
-              return (
-                <tr key={s._id} style={{ borderBottom: '1px solid #f0ebe5' }}>
-                  <td style={{ padding: '0.5rem' }}>{s.name}</td>
-                  <td style={{ padding: '0.5rem' }}>{s.category}</td>
-                  <td style={{ padding: '0.5rem', color: v.ok ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
-                    {v.text}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        <div className="stat-row">
+          <div className="stat-tile">
+            <div className="stat-num">{shops.length}</div>
+            <div className="stat-label">Total shops</div>
+          </div>
+          <div className="stat-tile">
+            <div className="stat-num" style={{ color: '#2e7d32' }}>{liveCount}</div>
+            <div className="stat-label">Live to customers</div>
+          </div>
+          <div className="stat-tile">
+            <div className="stat-num" style={{ color: '#c62828' }}>{shops.length - liveCount}</div>
+            <div className="stat-label">Hidden</div>
+          </div>
+        </div>
+      )}
+
+      {filtered && filtered.length === 0 && (
+        <div className="mf-empty">
+          <div className="mf-empty-icon">🏪</div>
+          {shops.length === 0 ? 'No shops yet.' : 'No shops match your search.'}
+        </div>
+      )}
+
+      {filtered && filtered.length > 0 && (
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Address</th>
+                <th>Visible to customers</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((s) => {
+                const v = visibility(s);
+                return (
+                  <tr key={s._id}>
+                    <td>{s.name}</td>
+                    <td>{CATEGORY_ICON[s.category] || ''} {s.category}</td>
+                    <td className="mf-subtitle">{s.address || '—'}</td>
+                    <td><span className={v.ok ? 'pill pill-good' : 'pill pill-bad'}>{v.text}</span></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

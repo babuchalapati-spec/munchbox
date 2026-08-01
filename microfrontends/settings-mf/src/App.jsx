@@ -21,25 +21,40 @@ export default function SettingsApp() {
   }, []);
 
   return (
-    <div style={{ fontFamily: 'system-ui, sans-serif', padding: '1.5rem' }}>
-      <h2 style={{ margin: '0 0 0.5rem' }}>Settings</h2>
-      <p style={{ color: '#776b63', fontSize: '0.85rem', marginTop: 0 }}>settings-mf — talking to {GATEWAY_URL}</p>
+    <div className="mf-page">
+      <div className="mf-header">
+        <div>
+          <div className="mf-title">Settings</div>
+          <div className="mf-subtitle">settings-mf · {GATEWAY_URL}</div>
+        </div>
+      </div>
+
       {error && (
-        <p style={{ color: '#c62828' }}>
-          Could not reach the gateway ({error}). Expected until admin-config-service is
-          actually migrated (ARCHITECTURE.md §6).
+        <p className="error">
+          Could not reach the gateway ({error}). Expected until admin-config-service is actually
+          migrated (ARCHITECTURE.md §6), unless this is a real error.
         </p>
       )}
-      {!error && settings === null && <p>Loading…</p>}
+
+      {!error && settings === null && <div className="skeleton-row" style={{ maxWidth: 400 }} />}
+
       {settings && (
-        <dl style={{ display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '0.4rem 1rem' }}>
-          <dt style={{ color: '#776b63' }}>Customer app version</dt>
-          <dd style={{ margin: 0 }}>{settings.app?.latestVersionName || '—'}</dd>
-          <dt style={{ color: '#776b63' }}>Partner app version</dt>
-          <dd style={{ margin: 0 }}>{settings.partnerApp?.latestVersionName || '—'}</dd>
-          <dt style={{ color: '#776b63' }}>Tax rate</dt>
-          <dd style={{ margin: 0 }}>{settings.finance?.taxPercent ?? '—'}%</dd>
-        </dl>
+        <div className="card" style={{ maxWidth: 480 }}>
+          <div className="stat-row" style={{ marginBottom: 0 }}>
+            <div className="stat-tile">
+              <div className="stat-num" style={{ fontSize: '1.1rem' }}>{settings.app?.latestVersionName || '—'}</div>
+              <div className="stat-label">Customer app</div>
+            </div>
+            <div className="stat-tile">
+              <div className="stat-num" style={{ fontSize: '1.1rem' }}>{settings.partnerApp?.latestVersionName || '—'}</div>
+              <div className="stat-label">Partner app</div>
+            </div>
+            <div className="stat-tile">
+              <div className="stat-num" style={{ fontSize: '1.1rem' }}>{settings.finance?.taxPercent ?? '—'}%</div>
+              <div className="stat-label">Tax rate</div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
