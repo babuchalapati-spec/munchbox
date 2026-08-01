@@ -172,7 +172,7 @@ export default function Shops() {
               <th>Category</th>
               <th>Subscription</th>
               <th>₹/km</th>
-              <th>Open</th>
+              <th>Visible to customers</th>
               <th></th>
             </tr>
           </thead>
@@ -193,7 +193,11 @@ export default function Shops() {
                   </div>
                 </td>
                 <td>₹{s.perKmRate}</td>
-                <td>{s.available ? 'Yes' : 'No'}</td>
+                <td>
+                  <span style={{ color: visibility(s).ok ? '#2e7d32' : '#c62828', fontWeight: 600 }}>
+                    {visibility(s).text}
+                  </span>
+                </td>
                 <td className="row-actions">
                   <button onClick={() => startEdit(s)}>Edit</button>
                   <button onClick={() => handleDelete(s._id)}>Delete</button>
