@@ -133,6 +133,7 @@ export default function Payments() {
       {failures.length > 0 && (
         <div className="card" style={{ borderColor: '#f3c6c2', background: '#fdecea' }}>
           <h2 style={{ color: '#c62828' }}>⚠️ {failures.length} customer payment{failures.length > 1 ? 's' : ''} failed</h2>
+          <div className="table-wrap">
           <table className="table">
             <thead>
               <tr>
@@ -162,6 +163,7 @@ export default function Payments() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -174,6 +176,7 @@ export default function Payments() {
         {pendingUpiOrders.length === 0 ? (
           <p style={{ color: '#2e7d32', fontWeight: 600 }}>✅ No customer UPI payments waiting.</p>
         ) : (
+          <div className="table-wrap">
           <table className="table">
             <thead>
               <tr>
@@ -210,6 +213,7 @@ export default function Payments() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
@@ -222,6 +226,7 @@ export default function Payments() {
         {pending.length === 0 ? (
           <p style={{ color: '#2e7d32', fontWeight: 600 }}>✅ No payments waiting.</p>
         ) : (
+          <div className="table-wrap">
           <table className="table">
             <thead>
               <tr>
@@ -258,6 +263,7 @@ export default function Payments() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
@@ -266,6 +272,7 @@ export default function Payments() {
         {recentOrders.length === 0 ? (
           <p className="muted">No online payments yet.</p>
         ) : (
+          <div className="table-wrap">
           <table className="table">
             <thead>
               <tr>
@@ -295,6 +302,7 @@ export default function Payments() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

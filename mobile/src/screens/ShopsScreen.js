@@ -21,6 +21,10 @@ export default function ShopsScreen({ route, navigation }) {
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // Tracks WHY the list might be empty, so the empty state can say something useful
+  // instead of always blaming "this category" — a shop count of zero after a location
+  // fix means "nothing within 15km", not "nothing in this category ever".
+  const [locationStatus, setLocationStatus] = useState('pending'); // 'pending' | 'used' | 'unavailable'
 
   const load = useCallback(async () => {
     // Only shops within ~15km show up (server-enforced) once we have a location fix;
@@ -34,6 +38,7 @@ export default function ShopsScreen({ route, navigation }) {
     } catch (err) {
       location = null;
     }
+    setLocationStatus(location ? 'used' : 'unavailable');
     const data = await listShops(category, location);
     setShops(data.filter((s) => s.available));
   }, [category]);
@@ -70,7 +75,17 @@ export default function ShopsScreen({ route, navigation }) {
         keyExtractor={(s) => s._id}
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        ListEmptyComponent={<Text style={styles.empty}>No shops available in this category yet.</Text>}
+        ListEmptyComponent={
+          <View style={styles.emptyWrap}>
+            <Text style={styles.empty}>
+              {locationStatus === 'used'
+                ? "No shops within 15km of your location right now — pull to refresh, or check back later as new shops join."
+                : locationStatus === 'unavailable'
+                ? 'No shops available yet. Turn on Location so we can show the ones nearest you.'
+                : 'No shops available yet.'}
+            </Text>
+          </View>
+        }
         renderItem={({ item }) => {
           const theme = categoryTheme(item.category);
           return (
@@ -91,7 +106,12 @@ export default function ShopsScreen({ route, navigation }) {
               </View>
             )}
             <View style={styles.cardBody}>
-              <Text style={styles.cardTitle}>{item.name}</Text>
+              <View style={styles.cardTitleRow}>
+                <Text style={styles.cardTitle}>{item.name}</Text>
+                {item.distanceKm != null && Number.isFinite(item.distanceKm) && (
+                  <Text style={styles.cardDistance}>{item.distanceKm} km</Text>
+                )}
+              </View>
               {item.description ? <Text style={styles.cardMeta}>{item.description}</Text> : null}
               <Text style={[styles.cardFee, { color: theme.primary }]}>Delivery ₹{item.perKmRate}/km</Text>
             </View>
@@ -119,7 +139,8 @@ const styles = StyleSheet.create({
   deliveryNote: { fontSize: 12, color: colors.muted },
   cartLink: { color: colors.primary, fontSize: 13, fontWeight: '600' },
   list: { padding: 16 },
-  empty: { color: colors.muted, textAlign: 'center', marginTop: 40 },
+  emptyWrap: { marginTop: 40, paddingHorizontal: 24 },
+  empty: { color: colors.muted, textAlign: 'center', lineHeight: 19 },
   card: {
     flexDirection: 'row',
     backgroundColor: colors.card,
@@ -133,7 +154,9 @@ const styles = StyleSheet.create({
   imagePlaceholder: { backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
   imagePlaceholderText: { color: '#fff', fontSize: 32, fontWeight: '700' },
   cardBody: { flex: 1, padding: 12, justifyContent: 'center' },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
+  cardTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+  cardTitle: { fontSize: 16, fontWeight: '700', color: colors.text, flex: 1 },
+  cardDistance: { fontSize: 11, fontWeight: '700', color: colors.muted },
   cardMeta: { fontSize: 12, color: colors.muted, marginTop: 2 },
   cardFee: { fontSize: 12, fontWeight: '600', color: colors.primary, marginTop: 6 },
 });

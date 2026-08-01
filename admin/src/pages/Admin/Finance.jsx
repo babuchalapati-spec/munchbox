@@ -104,7 +104,8 @@ export default function Finance() {
       {overview.revenueByArea.length === 0 ? (
         <p className="muted">No commission revenue recorded yet.</p>
       ) : (
-        <table className="table" style={{ marginBottom: 24 }}>
+        <div className="table-wrap" style={{ marginBottom: 24 }}>
+        <table className="table">
           <thead>
             <tr>
               <th>Area</th>
@@ -122,6 +123,7 @@ export default function Finance() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
       <p className="muted" style={{ marginTop: -12, marginBottom: 24 }}>
         Area is taken from the last part of each shop's address — as accurate as the addresses shops entered.
@@ -183,7 +185,8 @@ export default function Finance() {
       {expenses.length === 0 ? (
         <p className="muted">No expenses recorded yet.</p>
       ) : (
-        <table className="table" style={{ marginBottom: 24 }}>
+        <div className="table-wrap" style={{ marginBottom: 24 }}>
+        <table className="table">
           <thead>
             <tr>
               <th>Date</th>
@@ -209,6 +212,7 @@ export default function Finance() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
 
       <h2>Profit & Loss</h2>

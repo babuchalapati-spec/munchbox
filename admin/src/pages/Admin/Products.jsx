@@ -210,6 +210,7 @@ export default function Products() {
           {isShopOwner ? 'No items yet — add your first one above.' : 'No shop has added any items yet.'}
         </p>
       ) : (
+        <div className="table-wrap">
         <table className="table">
           <thead>
             <tr>
@@ -257,6 +258,7 @@ export default function Products() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );

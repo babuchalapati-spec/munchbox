@@ -138,6 +138,7 @@ export default function Ledger() {
         {loading ? (
           <p>Loading...</p>
         ) : (
+          <div className="table-wrap">
           <table className="table">
             <thead>
               <tr>
@@ -173,6 +174,7 @@ export default function Ledger() {
               )}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

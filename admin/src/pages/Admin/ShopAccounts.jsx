@@ -132,6 +132,7 @@ export default function ShopAccounts() {
         {pending.length === 0 ? (
           <p className="muted">No shops waiting for approval.</p>
         ) : (
+          <div className="table-wrap">
           <table className="table">
             <thead>
               <tr>
@@ -177,11 +178,13 @@ export default function ShopAccounts() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
       <div className="card">
         <h2>All shop accounts ({others.length})</h2>
+        <div className="table-wrap">
         <table className="table">
           <thead>
             <tr>
@@ -231,6 +234,7 @@ export default function ShopAccounts() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

@@ -33,9 +33,6 @@ export const ADMIN_NAV_SECTIONS = [
   {
     label: 'System',
     adminOnly: true,
-    items: [
-      { to: '/admin/settings', icon: '⚙️', label: 'Settings' },
-      { to: '/test-center', icon: '🧪', label: 'Test Center', external: true },
-    ],
+    items: [{ to: '/admin/settings', icon: '⚙️', label: 'Settings' }],
   },
 ];

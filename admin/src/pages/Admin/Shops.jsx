@@ -8,6 +8,19 @@ function subLabel(shop) {
   return { text: ends ? `Expired ${ends.toLocaleDateString()}` : 'No subscription', ok: false };
 }
 
+// The customer-facing shop list (see listShops on the backend) requires available AND
+// an active subscription AND (deposit paid OR agreement signed) — "Available: Yes" alone
+// doesn't mean a shop is actually visible, which is exactly what made "Bob gally" look
+// live in this table while customers couldn't see it at all. This mirrors that full check
+// so the admin sees the real, combined status instead of just the raw `available` flag.
+function visibility(shop) {
+  if (!shop.available) return { text: 'Hidden — not available', ok: false };
+  if (!subLabel(shop).ok) return { text: 'Hidden — subscription inactive', ok: false };
+  const depositBlocked = shop.deposit?.required && !shop.deposit?.paid && !shop.agreement?.signed;
+  if (depositBlocked) return { text: 'Hidden — deposit/agreement pending', ok: false };
+  return { text: 'Live to customers', ok: true };
+}
+
 const CATEGORIES = ['cake', 'restaurant', 'catering'];
 const emptyForm = { name: '', category: 'cake', description: '', address: '', lat: '', lng: '', perKmRate: '12', available: true };
 
@@ -151,6 +164,7 @@ export default function Shops() {
       {loading ? (
         <p>Loading...</p>
       ) : (
+        <div className="table-wrap">
         <table className="table">
           <thead>
             <tr>
@@ -188,6 +202,7 @@ export default function Shops() {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </div>
   );
